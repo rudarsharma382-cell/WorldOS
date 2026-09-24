@@ -1,0 +1,9 @@
+class: WatchZone
+table: watch_zone
+fields:
+  name: String
+  latitude: double
+  longitude: double
+  radiusKm: double
+  trackedTypes: List<String>
+  createdAt: DateTime

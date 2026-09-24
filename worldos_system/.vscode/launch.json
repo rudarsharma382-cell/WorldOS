@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "worldos_system_flutter",
+            "cwd": "${workspaceFolder}/worldos_system_flutter",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "worldos_system_server",
+            "cwd": "${workspaceFolder}/worldos_system_server",
+            "request": "launch",
+            "type": "dart",
+            "preLaunchTask": "docker_compose_up",
+            "program": "bin/main.dart",
+            "env": {
+                "SERVERPOD_PASSWORD_database": "vlM0xroAv-WU2btkl4txpbidw2A4zqBP"
+            },
+            "args": [
+                "--apply-migrations"
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "worldos_system (full stack)",
+            "configurations": [
+                "worldos_system_server",
+                "worldos_system_flutter"
+            ],
+            "presentation": {
+                "order": 1
+            }
+        }
+    ]
+}

@@ -1,0 +1,38 @@
+name: worldos
+description: "WorldOS — Real-Time Earth Intelligence Operating System."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  serverpod_client: 3.4.13
+  http: ^1.2.0
+  intl: ^0.20.2
+  vector_math: ^2.1.4
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/earth_map.png
+  fonts:
+    - family: PTSerif
+      fonts:
+        - asset: assets/PT_Serif/PTSerif-Regular.ttf
+        - asset: assets/PT_Serif/PTSerif-Bold.ttf
+          weight: 700
+        - asset: assets/PT_Serif/PTSerif-Italic.ttf
+          style: italic
+        - asset: assets/PT_Serif/PTSerif-BoldItalic.ttf
+          weight: 700
+          style: italic

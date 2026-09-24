@@ -1,0 +1,7 @@
+class: Investigation
+table: investigation
+fields:
+  title: String
+  notes: String?
+  eventIds: List<String>
+  createdAt: DateTime

@@ -1,0 +1,26 @@
+emailIdp:
+  - login:
+  - startRegistration:
+  - verifyRegistrationCode:
+  - finishRegistration:
+  - startPasswordReset:
+  - verifyPasswordResetCode:
+  - finishPasswordReset:
+  - hasAccount:
+jwtRefresh:
+  - refreshAccessToken:
+ai:
+  - generateBriefing:
+  - askWorldOS:
+event:
+  - getActiveEvents:
+  - getEventsNearLocation:
+  - saveAndBroadcastEvent:
+investigation:
+  - createInvestigation:
+  - getInvestigations:
+watchZone:
+  - createWatchZone:
+  - getWatchZones:
+greeting:
+  - hello:

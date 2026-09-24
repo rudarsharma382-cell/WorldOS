@@ -1,0 +1,11 @@
+name: _
+publish_to: none
+
+environment:
+  sdk: '^3.8.0'
+
+workspace:
+  - worldos_system_client
+  - worldos_system_server
+  - worldos_system_flutter
+

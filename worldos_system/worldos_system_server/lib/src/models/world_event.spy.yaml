@@ -1,0 +1,26 @@
+class: WorldEvent
+table: world_event
+fields:
+  externalId: String
+  type: String
+  title: String
+  description: String?
+  latitude: double
+  longitude: double
+  altitude: double?
+  timestamp: DateTime
+  updatedAt: DateTime
+  source: String
+  sourceUrl: String?
+  severity: double
+  confidence: double?
+  country: String?
+  region: String?
+  city: String?
+  rawMetadata: String?
+
+indexes:
+  external_id_idx:
+    fields: externalId
+  type_idx:
+    fields: type
