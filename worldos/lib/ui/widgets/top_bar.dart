@@ -1,13 +1,16 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
+import '../../services/nasa_service.dart';
 
 class TopBar extends StatefulWidget {
   final TextEditingController searchController;
   final Function(String) onSearchSubmitted;
+  final Function(double lat, double lon, String name)? onLocationSelected;
+  final Function(bool isOpen)? onDropdownVisibilityChanged;
   final int liveEventCount;
   final bool isMobile;
   final VoidCallback onToggleMobileLayers;
@@ -17,6 +20,8 @@ class TopBar extends StatefulWidget {
     super.key,
     required this.searchController,
     required this.onSearchSubmitted,
+    this.onLocationSelected,
+    this.onDropdownVisibilityChanged,
     required this.liveEventCount,
     required this.isMobile,
     required this.onToggleMobileLayers,
@@ -24,12 +29,19 @@ class TopBar extends StatefulWidget {
   });
 
   @override
-  State<TopBar> createState() => _TopBarState();
+  State<TopBar> createState() => TopBarState();
 }
 
-class _TopBarState extends State<TopBar> {
+class TopBarState extends State<TopBar> {
   late Timer _clockTimer;
   String _timeUtc = '';
+
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
+  bool _isDropdownOpen = false;
+  Timer? _debounceTimer;
+
+  bool get isDropdownOpen => _isDropdownOpen && _searchResults.isNotEmpty;
 
   @override
   void initState() {
@@ -41,7 +53,18 @@ class _TopBarState extends State<TopBar> {
   @override
   void dispose() {
     _clockTimer.cancel();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void dismissSearchDropdown() {
+    if (_searchResults.isNotEmpty || _isDropdownOpen) {
+      setState(() {
+        _searchResults = [];
+        _isDropdownOpen = false;
+      });
+      widget.onDropdownVisibilityChanged?.call(false);
+    }
   }
 
   void _updateClock() {
@@ -50,24 +73,76 @@ class _TopBarState extends State<TopBar> {
     });
   }
 
+  void _onSearchChanged(String val) {
+    _debounceTimer?.cancel();
+    if (val.trim().length < 2) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+        _isDropdownOpen = false;
+      });
+      widget.onDropdownVisibilityChanged?.call(false);
+      return;
+    }
+
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      setState(() => _isSearching = true);
+      final results = await NasaService().searchPhotonGeocoding(val);
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+          _isDropdownOpen = results.isNotEmpty;
+        });
+        widget.onDropdownVisibilityChanged?.call(results.isNotEmpty);
+      }
+    });
+  }
+
+  void _selectSearchResult(Map<String, dynamic> result) {
+    // 1. Dismiss keyboard and unfocus search field
+    FocusScope.of(context).unfocus();
+
+    final name = result['displayName']?.toString() ?? 'Location';
+    final lat = (result['latitude'] as num?)?.toDouble() ?? 0.0;
+    final lon = (result['longitude'] as num?)?.toDouble() ?? 0.0;
+
+    widget.searchController.text = name;
+
+    // 2. CLEAR and CLOSE the dropdown immediately
+    setState(() {
+      _searchResults = [];
+      _isDropdownOpen = false;
+    });
+
+    widget.onDropdownVisibilityChanged?.call(false);
+
+    // 3. Trigger 3D Fly-To & Update inspection panel state
+    if (widget.onLocationSelected != null) {
+      widget.onLocationSelected!(lat, lon, name);
+    } else {
+      widget.onSearchSubmitted(name);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0C1017).withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.5),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 720;
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+        final isNarrow = outerConstraints.maxWidth < 720;
 
-              return Row(
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF070B12).withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+              ),
+              child: Row(
                 children: [
                   // Brand Header
                   Row(
@@ -109,7 +184,7 @@ class _TopBarState extends State<TopBar> {
                           const Icon(CupertinoIcons.radiowaves_right, color: Color(0xFF10B981), size: 12),
                           const SizedBox(width: 6),
                           Text(
-                            '4 STREAMS ACTIVE',
+                            '6 STREAMS LIVE',
                             style: GoogleFonts.jetBrainsMono(
                               color: const Color(0xFF10B981),
                               fontSize: 10,
@@ -123,7 +198,7 @@ class _TopBarState extends State<TopBar> {
                     const SizedBox(width: 16),
                   ],
 
-                  // Unobtrusive Search Field
+                  // Unobtrusive Universal Search Field
                   Expanded(
                     child: SizedBox(
                       height: 32,
@@ -131,13 +206,22 @@ class _TopBarState extends State<TopBar> {
                         controller: widget.searchController,
                         style: GoogleFonts.inter(color: Colors.white, fontSize: 12),
                         decoration: InputDecoration(
-                          hintText: isNarrow ? 'Search...' : 'Search coordinates, regions, or telemetry events...',
+                          hintText: isNarrow ? 'Search Photon OSM...' : 'Search global cities, coordinates (Photon OSM), or flights...',
                           hintStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
-                          prefixIcon: const Icon(CupertinoIcons.search, color: Colors.white38, size: 14),
+                          prefixIcon: _isSearching
+                              ? const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.2, color: Color(0xFF38BDF8))),
+                                )
+                              : const Icon(CupertinoIcons.search, color: Colors.white38, size: 14),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(vertical: 8),
                         ),
-                        onSubmitted: widget.onSearchSubmitted,
+                        onChanged: _onSearchChanged,
+                        onSubmitted: (query) {
+                          dismissSearchDropdown();
+                          widget.onSearchSubmitted(query);
+                        },
                       ),
                     ),
                   ),
@@ -175,11 +259,76 @@ class _TopBarState extends State<TopBar> {
                     ),
                   ],
                 ],
-              );
-            },
-          ),
-        ),
-      ),
+              ),
+            ),
+
+            // Photon OSM Autocomplete Suggestions Dropdown
+            if (_searchResults.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(left: isNarrow ? 0 : 280),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 500),
+                    margin: const EdgeInsets.only(top: 6),
+                    child: PointerInterceptor(
+                      intercepting: true,
+                      child: Material(
+                        color: const Color(0xFF0A0E17), // Solid opaque slate (no alpha bleed)
+                        borderRadius: BorderRadius.circular(6),
+                        elevation: 16,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3), width: 0.5),
+                          ),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: _searchResults.length,
+                            itemBuilder: (context, index) {
+                              final result = _searchResults[index];
+                              final name = result['displayName']?.toString() ?? '';
+                              final lat = (result['latitude'] as num?)?.toDouble() ?? 0.0;
+                              final lon = (result['longitude'] as num?)?.toDouble() ?? 0.0;
+                              return InkWell(
+                                onTap: () {
+                                  _selectSearchResult(result);
+                                },
+                                hoverColor: const Color(0xFF1E293B),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.location_on, size: 16, color: Color(0xFF38BDF8)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          name,
+                                          style: GoogleFonts.inter(color: const Color(0xFFF8FAFC), fontSize: 13, fontWeight: FontWeight.w500),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${lat.toStringAsFixed(2)}°, ${lon.toStringAsFixed(2)}°',
+                                        style: GoogleFonts.jetBrainsMono(color: Colors.white38, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

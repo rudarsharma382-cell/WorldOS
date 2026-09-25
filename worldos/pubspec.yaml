@@ -15,6 +15,9 @@ dependencies:
   intl: ^0.20.2
   vector_math: ^2.1.4
   google_fonts: ^6.2.1
+  pointer_interceptor: ^0.10.1
+  web: ^1.0.0
+
 
 dev_dependencies:
   flutter_test:

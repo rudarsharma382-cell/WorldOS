@@ -1,0 +1,7 @@
+class: EventMediaPayload
+fields:
+  satelliteImageUrl: String?
+  groundImageUrl: String?
+  attribution: String?
+  title: String?
+  caption: String?

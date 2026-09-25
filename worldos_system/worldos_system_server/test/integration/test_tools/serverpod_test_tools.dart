@@ -18,9 +18,11 @@ import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i4;
 import 'package:worldos_system_server/src/generated/world_event.dart' as _i5;
 import 'package:worldos_system_server/src/generated/investigation.dart' as _i6;
-import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i7;
+import 'package:worldos_system_server/src/generated/event_media_payload.dart'
+    as _i7;
+import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i8;
 import 'package:worldos_system_server/src/generated/greetings/greeting.dart'
-    as _i8;
+    as _i9;
 import 'package:worldos_system_server/src/generated/protocol.dart';
 import 'package:worldos_system_server/src/generated/endpoints.dart';
 export 'package:serverpod_test/serverpod_test_public_exports.dart';
@@ -145,7 +147,15 @@ class TestEndpoints {
 
   late final _InvestigationEndpoint investigation;
 
+  late final _MediaEndpoint media;
+
+  late final _NasaEndpoint nasa;
+
+  late final _SearchEndpoint search;
+
   late final _WatchZoneEndpoint watchZone;
+
+  late final _WeatherEndpoint weather;
 
   late final _GreetingEndpoint greeting;
 }
@@ -177,7 +187,23 @@ class _InternalTestEndpoints extends TestEndpoints
       endpoints,
       serializationManager,
     );
+    media = _MediaEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    nasa = _NasaEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    search = _SearchEndpoint(
+      endpoints,
+      serializationManager,
+    );
     watchZone = _WatchZoneEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    weather = _WeatherEndpoint(
       endpoints,
       serializationManager,
     );
@@ -775,6 +801,144 @@ class _InvestigationEndpoint {
   }
 }
 
+class _MediaEndpoint {
+  _MediaEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<_i7.EventMediaPayload> getLocationMedia(
+    _i1.TestSessionBuilder sessionBuilder,
+    double lat,
+    double lon,
+    String? query,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'media',
+            method: 'getLocationMedia',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'media',
+          methodName: 'getLocationMedia',
+          parameters: _i1.testObjectToJson({
+            'lat': lat,
+            'lon': lon,
+            'query': query,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i7.EventMediaPayload>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _NasaEndpoint {
+  _NasaEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<Map<String, dynamic>> fetchSatelliteImagery(
+    _i1.TestSessionBuilder sessionBuilder,
+    double lat,
+    double lon,
+    String? eventType,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'nasa',
+            method: 'fetchSatelliteImagery',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'nasa',
+          methodName: 'fetchSatelliteImagery',
+          parameters: _i1.testObjectToJson({
+            'lat': lat,
+            'lon': lon,
+            'eventType': eventType,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<Map<String, dynamic>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _SearchEndpoint {
+  _SearchEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<List<Map<String, dynamic>>> searchLocation(
+    _i1.TestSessionBuilder sessionBuilder,
+    String query,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'search',
+            method: 'searchLocation',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'search',
+          methodName: 'searchLocation',
+          parameters: _i1.testObjectToJson({'query': query}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<Map<String, dynamic>>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
 class _WatchZoneEndpoint {
   _WatchZoneEndpoint(
     this._endpointDispatch,
@@ -785,9 +949,9 @@ class _WatchZoneEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i7.WatchZone> createWatchZone(
+  _i3.Future<_i8.WatchZone> createWatchZone(
     _i1.TestSessionBuilder sessionBuilder,
-    _i7.WatchZone watchZone,
+    _i8.WatchZone watchZone,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -808,7 +972,7 @@ class _WatchZoneEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i7.WatchZone>);
+                as _i3.Future<_i8.WatchZone>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -816,7 +980,7 @@ class _WatchZoneEndpoint {
     });
   }
 
-  _i3.Future<List<_i7.WatchZone>> getWatchZones(
+  _i3.Future<List<_i8.WatchZone>> getWatchZones(
     _i1.TestSessionBuilder sessionBuilder,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -838,7 +1002,53 @@ class _WatchZoneEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i7.WatchZone>>);
+                as _i3.Future<List<_i8.WatchZone>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _WeatherEndpoint {
+  _WeatherEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<Map<String, dynamic>> getWeatherForecast(
+    _i1.TestSessionBuilder sessionBuilder,
+    double lat,
+    double lon,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'weather',
+            method: 'getWeatherForecast',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'weather',
+          methodName: 'getWeatherForecast',
+          parameters: _i1.testObjectToJson({
+            'lat': lat,
+            'lon': lon,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<Map<String, dynamic>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -857,7 +1067,7 @@ class _GreetingEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i8.Greeting> hello(
+  _i3.Future<_i9.Greeting> hello(
     _i1.TestSessionBuilder sessionBuilder,
     String name,
   ) async {
@@ -880,7 +1090,7 @@ class _GreetingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i8.Greeting>);
+                as _i3.Future<_i9.Greeting>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

@@ -1,0 +1,9 @@
+class: CameraFeedPayload
+fields:
+  id: String
+  title: String
+  latitude: double
+  longitude: double
+  previewImageUrl: String
+  fullImageUrl: String
+  updatedAt: String

@@ -19,10 +19,15 @@ import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i4;
 import 'package:worldos_system_client/src/protocol/world_event.dart' as _i5;
 import 'package:worldos_system_client/src/protocol/investigation.dart' as _i6;
-import 'package:worldos_system_client/src/protocol/watch_zone.dart' as _i7;
+import 'package:worldos_system_client/src/protocol/event_media_payload.dart'
+    as _i7;
+import 'package:worldos_system_client/src/protocol/watch_zone.dart' as _i8;
 import 'package:worldos_system_client/src/protocol/greetings/greeting.dart'
-    as _i8;
-import 'protocol.dart' as _i9;
+    as _i9;
+import 'package:worldos_system_client/src/protocol/camera_feed_payload.dart'
+    as _i11;
+import 'protocol.dart' as _i10;
+export 'camera_feed_payload.dart';
 
 /// By extending [EmailIdpBaseEndpoint], the email identity provider endpoints
 /// are made available on the server and enable the corresponding sign-in widget
@@ -343,25 +348,108 @@ class EndpointInvestigation extends _i2.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointMedia extends _i2.EndpointRef {
+  EndpointMedia(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'media';
+
+  /// Multi-Tier Visual Pipeline for (lat, lon) coordinates
+  _i3.Future<_i7.EventMediaPayload> getLocationMedia(
+    double lat,
+    double lon,
+    String? query,
+  ) => caller.callServerEndpoint<_i7.EventMediaPayload>(
+    'media',
+    'getLocationMedia',
+    {
+      'lat': lat,
+      'lon': lon,
+      'query': query,
+    },
+  );
+}
+
+/// {@category Endpoint}
+class EndpointNasa extends _i2.EndpointRef {
+  EndpointNasa(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'nasa';
+
+  /// Fetches NASA Earth Satellite Imagery or Fallback Image Library asset for a (lat, lon) coordinate.
+  _i3.Future<Map<String, dynamic>> fetchSatelliteImagery(
+    double lat,
+    double lon,
+    String? eventType,
+  ) => caller.callServerEndpoint<Map<String, dynamic>>(
+    'nasa',
+    'fetchSatelliteImagery',
+    {
+      'lat': lat,
+      'lon': lon,
+      'eventType': eventType,
+    },
+  );
+}
+
+/// {@category Endpoint}
+class EndpointSearch extends _i2.EndpointRef {
+  EndpointSearch(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'search';
+
+  /// Worldwide Universal Geocoding Search via Photon (OSM)
+  _i3.Future<List<Map<String, dynamic>>> searchLocation(String query) =>
+      caller.callServerEndpoint<List<Map<String, dynamic>>>(
+        'search',
+        'searchLocation',
+        {'query': query},
+      );
+}
+
+/// {@category Endpoint}
 class EndpointWatchZone extends _i2.EndpointRef {
   EndpointWatchZone(_i2.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'watchZone';
 
-  _i3.Future<_i7.WatchZone> createWatchZone(_i7.WatchZone watchZone) =>
-      caller.callServerEndpoint<_i7.WatchZone>(
+  _i3.Future<_i8.WatchZone> createWatchZone(_i8.WatchZone watchZone) =>
+      caller.callServerEndpoint<_i8.WatchZone>(
         'watchZone',
         'createWatchZone',
         {'watchZone': watchZone},
       );
 
-  _i3.Future<List<_i7.WatchZone>> getWatchZones() =>
-      caller.callServerEndpoint<List<_i7.WatchZone>>(
+  _i3.Future<List<_i8.WatchZone>> getWatchZones() =>
+      caller.callServerEndpoint<List<_i8.WatchZone>>(
         'watchZone',
         'getWatchZones',
         {},
       );
+}
+
+/// {@category Endpoint}
+class EndpointWeather extends _i2.EndpointRef {
+  EndpointWeather(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'weather';
+
+  /// Fetches real-time atmospheric telemetry from Open-Meteo API
+  _i3.Future<Map<String, dynamic>> getWeatherForecast(
+    double lat,
+    double lon,
+  ) => caller.callServerEndpoint<Map<String, dynamic>>(
+    'weather',
+    'getWeatherForecast',
+    {
+      'lat': lat,
+      'lon': lon,
+    },
+  );
 }
 
 /// This is an example endpoint that returns a greeting message through
@@ -374,11 +462,35 @@ class EndpointGreeting extends _i2.EndpointRef {
   String get name => 'greeting';
 
   /// Returns a personalized greeting message: "Hello {name}".
-  _i3.Future<_i8.Greeting> hello(String name) =>
-      caller.callServerEndpoint<_i8.Greeting>(
+  _i3.Future<_i9.Greeting> hello(String name) =>
+      caller.callServerEndpoint<_i9.Greeting>(
         'greeting',
         'hello',
         {'name': name},
+      );
+}
+
+/// {@category Endpoint}
+class EndpointCamera extends _i2.EndpointRef {
+  EndpointCamera(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'camera';
+
+  /// Queries Windy Webcams v3 REST API for public municipal CCTV feeds nearby
+  _i3.Future<List<_i11.CameraFeedPayload>> getCamerasNearby(
+    double lat,
+    double lon, {
+    int radiusKm = 30,
+  }) =>
+      caller.callServerEndpoint<List<_i11.CameraFeedPayload>>(
+        'camera',
+        'getCamerasNearby',
+        {
+          'lat': lat,
+          'lon': lon,
+          'radiusKm': radiusKm,
+        },
       );
 }
 
@@ -413,7 +525,7 @@ class Client extends _i2.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i9.Protocol(),
+         _i10.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -427,8 +539,13 @@ class Client extends _i2.ServerpodClientShared {
     ai = EndpointAi(this);
     event = EndpointEvent(this);
     investigation = EndpointInvestigation(this);
+    media = EndpointMedia(this);
+    nasa = EndpointNasa(this);
+    search = EndpointSearch(this);
     watchZone = EndpointWatchZone(this);
+    weather = EndpointWeather(this);
     greeting = EndpointGreeting(this);
+    camera = EndpointCamera(this);
     modules = Modules(this);
   }
 
@@ -442,9 +559,19 @@ class Client extends _i2.ServerpodClientShared {
 
   late final EndpointInvestigation investigation;
 
+  late final EndpointMedia media;
+
+  late final EndpointNasa nasa;
+
+  late final EndpointSearch search;
+
   late final EndpointWatchZone watchZone;
 
+  late final EndpointWeather weather;
+
   late final EndpointGreeting greeting;
+
+  late final EndpointCamera camera;
 
   late final Modules modules;
 
@@ -455,8 +582,13 @@ class Client extends _i2.ServerpodClientShared {
     'ai': ai,
     'event': event,
     'investigation': investigation,
+    'media': media,
+    'nasa': nasa,
+    'search': search,
     'watchZone': watchZone,
+    'weather': weather,
     'greeting': greeting,
+    'camera': camera,
   };
 
   @override

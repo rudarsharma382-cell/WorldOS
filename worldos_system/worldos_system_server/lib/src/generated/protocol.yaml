@@ -19,8 +19,16 @@ event:
 investigation:
   - createInvestigation:
   - getInvestigations:
+media:
+  - getLocationMedia:
+nasa:
+  - fetchSatelliteImagery:
+search:
+  - searchLocation:
 watchZone:
   - createWatchZone:
   - getWatchZones:
+weather:
+  - getWeatherForecast:
 greeting:
   - hello:

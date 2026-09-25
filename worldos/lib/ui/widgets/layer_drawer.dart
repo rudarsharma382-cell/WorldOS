@@ -1,15 +1,16 @@
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/watch_zone.dart';
 import '../../models/investigation.dart';
+import '../../models/world_event.dart';
 
 class LayerDrawer extends StatelessWidget {
   final Set<String> activeLayers;
   final Function(String) onToggleLayer;
   final List<WatchZone> watchZones;
   final List<Investigation> investigations;
+  final List<WorldEvent>? events;
   final VoidCallback onCreateWatchZone;
   final Function(WatchZone) onSelectWatchZone;
   final Function(Investigation) onSelectInvestigation;
@@ -20,25 +21,27 @@ class LayerDrawer extends StatelessWidget {
     required this.onToggleLayer,
     required this.watchZones,
     required this.investigations,
+    this.events,
     required this.onCreateWatchZone,
     required this.onSelectWatchZone,
     required this.onSelectInvestigation,
   });
 
+  int _getLayerCount(String type) {
+    if (events == null || events!.isEmpty) return 0;
+    return events!.where((e) => e.type.toUpperCase() == type.toUpperCase()).length;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          width: 270,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0C1017).withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.5),
-          ),
-          child: SingleChildScrollView(
+    return Container(
+      width: 270,
+      decoration: BoxDecoration(
+        color: const Color(0xFF070B12).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+      ),
+      child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,11 +67,14 @@ class LayerDrawer extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 // Compact Functional Micro Switch Instrument Rail
-                _buildLayerRow('EARTHQUAKE', 'Seismic Activity', 'USGS', const Color(0xFFFF5555), CupertinoIcons.waveform_path_ecg, 14),
-                _buildLayerRow('WEATHER', 'Severe Weather', 'NOAA', const Color(0xFF38BDF8), CupertinoIcons.wind, 8),
-                _buildLayerRow('WILDFIRE', 'Thermal Anomalies', 'NASA', const Color(0xFFF59E0B), CupertinoIcons.flame, 11),
-                _buildLayerRow('SATELLITE', 'Orbital Telemetry', 'CELESTRAK', const Color(0xFFA855F7), CupertinoIcons.radiowaves_right, 6),
-                _buildLayerRow('STORM', 'Tropical Cyclones', 'JMA', const Color(0xFF0EA5E9), CupertinoIcons.cloud_bolt, 4),
+                _buildLayerRow('EARTHQUAKE', 'Seismic Activity', 'USGS', const Color(0xFFFF5555), CupertinoIcons.waveform_path_ecg, _getLayerCount('EARTHQUAKE')),
+                _buildLayerRow('WEATHER', 'Severe Weather', 'NOAA / OPEN-METEO', const Color(0xFF38BDF8), CupertinoIcons.wind, _getLayerCount('WEATHER')),
+                _buildLayerRow('WILDFIRE', 'Thermal Anomalies', 'NASA FIRMS', const Color(0xFFF59E0B), CupertinoIcons.flame, _getLayerCount('WILDFIRE')),
+                _buildLayerRow('SATELLITE', 'Orbital Telemetry', 'CELESTRAK / ISS', const Color(0xFFA855F7), CupertinoIcons.radiowaves_right, _getLayerCount('SATELLITE')),
+                _buildLayerRow('STORM', 'Extreme Events', 'NASA EONET', const Color(0xFF0EA5E9), CupertinoIcons.cloud_bolt, _getLayerCount('STORM')),
+                _buildLayerRow('AIRCRAFT', 'Commercial Aviation', 'OPENSKY', const Color(0xFF10B981), CupertinoIcons.airplane, _getLayerCount('AIRCRAFT')),
+                _buildLayerRow('SHIP', 'Maritime Traffic', 'AISSTREAM', const Color(0xFF06B6D4), Icons.directions_boat_filled, _getLayerCount('SHIP')),
+                _buildLayerRow('CAMERA', 'Live CCTV & Surveillance', 'WINDY / MUNICIPAL', const Color(0xFF22C55E), CupertinoIcons.videocam_fill, _getLayerCount('CAMERA')),
 
                 const SizedBox(height: 20),
 
@@ -251,9 +257,7 @@ class LayerDrawer extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildLayerRow(String key, String label, String provider, Color accentColor, IconData iconData, int count) {

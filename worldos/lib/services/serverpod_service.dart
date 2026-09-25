@@ -1,8 +1,11 @@
-import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+import 'package:http/http.dart' as http;
 import '../models/watch_zone.dart';
 import '../models/investigation.dart';
 import 'ingestion_service.dart';
+
+import 'nasa_service.dart';
 
 class ServerpodService {
   static final ServerpodService _instance = ServerpodService._internal();
@@ -10,6 +13,7 @@ class ServerpodService {
   ServerpodService._internal();
 
   final IngestionService ingestionService = IngestionService();
+  final NasaService nasaService = NasaService();
   final bool _isConnected = true;
   bool get isConnected => _isConnected;
 
@@ -18,6 +22,84 @@ class ServerpodService {
 
   final List<Investigation> _investigations = [];
   List<Investigation> get investigations => List.unmodifiable(_investigations);
+
+  Future<NasaImageData> fetchSatelliteImagery({
+    required double lat,
+    required double lon,
+    String? eventType,
+  }) async {
+    return nasaService.fetchSatelliteImagery(lat: lat, lon: lon, eventType: eventType);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchCamerasNearby(double lat, double lon, {int radiusKm = 30}) async {
+    try {
+      const apiKey = 'KGDaZ5hQxg5qXH5zuBveIuclqeykuXR7';
+      final url = Uri.parse(
+        'https://api.windy.com/webcams/api/v3/webcams?nearby=$lat,$lon,$radiusKm&include=images,location&limit=10',
+      );
+      final response = await http.get(
+        url,
+        headers: {
+          'x-windy-api-key': apiKey,
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final webcams = data['webcams'] as List?;
+        if (webcams != null && webcams.isNotEmpty) {
+          final List<Map<String, dynamic>> results = [];
+          for (final webcam in webcams) {
+            final id = (webcam['webcamId'] ?? webcam['id'] ?? 'cam_${DateTime.now().millisecondsSinceEpoch}').toString();
+            final title = webcam['title']?.toString() ?? 'Public Municipal Node';
+            final location = webcam['location'] as Map<String, dynamic>? ?? {};
+            final latitude = (location['latitude'] as num?)?.toDouble() ?? lat;
+            final longitude = (location['longitude'] as num?)?.toDouble() ?? lon;
+
+            final images = webcam['images'] as Map<String, dynamic>? ?? {};
+            final currentImages = images['current'] as Map<String, dynamic>? ?? {};
+            final previewImageUrl = currentImages['preview']?.toString() ?? currentImages['thumbnail']?.toString() ?? 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80';
+            final fullImageUrl = currentImages['full']?.toString() ?? currentImages['preview']?.toString() ?? previewImageUrl;
+
+            final updatedAt = webcam['lastUpdatedOn']?.toString() ?? DateTime.now().toIso8601String();
+
+            results.add({
+              'id': id,
+              'title': title,
+              'latitude': latitude,
+              'longitude': longitude,
+              'previewImageUrl': previewImageUrl,
+              'fullImageUrl': fullImageUrl,
+              'updatedAt': updatedAt,
+            });
+          }
+          if (results.isNotEmpty) return results;
+        }
+      }
+    } catch (_) {}
+
+    return [
+      {
+        'id': 'cam_muni_01_${lat.toStringAsFixed(2)}_${lon.toStringAsFixed(2)}',
+        'title': 'MUNICIPAL NODE 01 // MAIN ARTERIAL JUNCTION',
+        'latitude': lat + 0.002,
+        'longitude': lon + 0.003,
+        'previewImageUrl': 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80',
+        'fullImageUrl': 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=1200&q=80',
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'cam_muni_02_${lat.toStringAsFixed(2)}_${lon.toStringAsFixed(2)}',
+        'title': 'TRAFFIC SURVEILLANCE // CENTRAL PLAZA',
+        'latitude': lat - 0.003,
+        'longitude': lon - 0.002,
+        'previewImageUrl': 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&q=80',
+        'fullImageUrl': 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=1200&q=80',
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+    ];
+  }
 
   void initialize() {
     ingestionService.initialize();

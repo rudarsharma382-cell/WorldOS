@@ -7,6 +7,8 @@ import 'package:serverpod_auth_idp_server/providers/email.dart';
 import 'src/generated/endpoints.dart';
 import 'src/generated/protocol.dart';
 import 'src/jobs/nasa_ingestion_job.dart';
+import 'src/jobs/flight_ingestion_job.dart';
+import 'src/services/ais_stream_service.dart';
 import 'src/web/routes/app_config_route.dart';
 import 'src/web/routes/root.dart';
 
@@ -17,6 +19,7 @@ void run(List<String> args) async {
 
   // Register NASA FIRMS recurring ingestion FutureCall
   pod.registerFutureCall(NasaIngestionJob(), NasaIngestionJob.jobName);
+  pod.registerFutureCall(FlightIngestionJob(), FlightIngestionJob.jobName);
 
   // Initialize authentication services for the server.
   // Token managers will be used to validate and issue authentication keys,
@@ -80,8 +83,12 @@ void run(List<String> args) async {
   // Start the server.
   await pod.start();
 
+  // Initialize AISStream live maritime WebSocket ingestion stream
+  AisStreamService().initialize(pod);
+
   // Trigger initial NASA FIRMS ingestion job 5 seconds after startup
   pod.futureCallWithDelay(NasaIngestionJob.jobName, null, const Duration(seconds: 5));
+  pod.futureCallWithDelay(FlightIngestionJob.jobName, null, const Duration(seconds: 8));
 }
 
 void _sendRegistrationCode(

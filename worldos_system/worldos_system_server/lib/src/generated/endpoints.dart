@@ -17,15 +17,20 @@ import '../auth/jwt_refresh_endpoint.dart' as _i3;
 import '../endpoints/ai_endpoint.dart' as _i4;
 import '../endpoints/event_endpoint.dart' as _i5;
 import '../endpoints/investigation_endpoint.dart' as _i6;
-import '../endpoints/watch_zone_endpoint.dart' as _i7;
-import '../greetings/greeting_endpoint.dart' as _i8;
-import 'package:worldos_system_server/src/generated/world_event.dart' as _i9;
-import 'package:worldos_system_server/src/generated/investigation.dart' as _i10;
-import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i11;
+import '../endpoints/media_endpoint.dart' as _i7;
+import '../endpoints/nasa_endpoint.dart' as _i8;
+import '../endpoints/search_endpoint.dart' as _i9;
+import '../endpoints/watch_zone_endpoint.dart' as _i10;
+import '../endpoints/weather_endpoint.dart' as _i11;
+import '../greetings/greeting_endpoint.dart' as _i12;
+import '../endpoints/camera_endpoint.dart' as _i18;
+import 'package:worldos_system_server/src/generated/world_event.dart' as _i13;
+import 'package:worldos_system_server/src/generated/investigation.dart' as _i14;
+import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i15;
 import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
-    as _i12;
+    as _i16;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
-    as _i13;
+    as _i17;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
@@ -61,19 +66,86 @@ class Endpoints extends _i1.EndpointDispatch {
           'investigation',
           null,
         ),
-      'watchZone': _i7.WatchZoneEndpoint()
+      'media': _i7.MediaEndpoint()
+        ..initialize(
+          server,
+          'media',
+          null,
+        ),
+      'nasa': _i8.NasaEndpoint()
+        ..initialize(
+          server,
+          'nasa',
+          null,
+        ),
+      'search': _i9.SearchEndpoint()
+        ..initialize(
+          server,
+          'search',
+          null,
+        ),
+      'watchZone': _i10.WatchZoneEndpoint()
         ..initialize(
           server,
           'watchZone',
           null,
         ),
-      'greeting': _i8.GreetingEndpoint()
+      'weather': _i11.WeatherEndpoint()
+        ..initialize(
+          server,
+          'weather',
+          null,
+        ),
+      'greeting': _i12.GreetingEndpoint()
         ..initialize(
           server,
           'greeting',
           null,
         ),
+      'camera': _i18.CameraEndpoint()
+        ..initialize(
+          server,
+          'camera',
+          null,
+        ),
     };
+    connectors['camera'] = _i1.EndpointConnector(
+      name: 'camera',
+      endpoint: endpoints['camera']!,
+      methodConnectors: {
+        'getCamerasNearby': _i1.MethodConnector(
+          name: 'getCamerasNearby',
+          params: {
+            'lat': _i1.ParameterDescription(
+              name: 'lat',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'lon': _i1.ParameterDescription(
+              name: 'lon',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'radiusKm': _i1.ParameterDescription(
+              name: 'radiusKm',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['camera'] as _i18.CameraEndpoint)
+                  .getCamerasNearby(
+                    session,
+                    params['lat'],
+                    params['lon'],
+                    radiusKm: params['radiusKm'] ?? 30,
+                  ),
+        ),
+      },
+    );
     connectors['emailIdp'] = _i1.EndpointConnector(
       name: 'emailIdp',
       endpoint: endpoints['emailIdp']!,
@@ -409,7 +481,7 @@ class Endpoints extends _i1.EndpointDispatch {
           params: {
             'event': _i1.ParameterDescription(
               name: 'event',
-              type: _i1.getType<_i9.WorldEvent>(),
+              type: _i1.getType<_i13.WorldEvent>(),
               nullable: false,
             ),
           },
@@ -434,7 +506,7 @@ class Endpoints extends _i1.EndpointDispatch {
           params: {
             'investigation': _i1.ParameterDescription(
               name: 'investigation',
-              type: _i1.getType<_i10.Investigation>(),
+              type: _i1.getType<_i14.Investigation>(),
               nullable: false,
             ),
           },
@@ -462,6 +534,105 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
       },
     );
+    connectors['media'] = _i1.EndpointConnector(
+      name: 'media',
+      endpoint: endpoints['media']!,
+      methodConnectors: {
+        'getLocationMedia': _i1.MethodConnector(
+          name: 'getLocationMedia',
+          params: {
+            'lat': _i1.ParameterDescription(
+              name: 'lat',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'lon': _i1.ParameterDescription(
+              name: 'lon',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'query': _i1.ParameterDescription(
+              name: 'query',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['media'] as _i7.MediaEndpoint).getLocationMedia(
+                    session,
+                    params['lat'],
+                    params['lon'],
+                    params['query'],
+                  ),
+        ),
+      },
+    );
+    connectors['nasa'] = _i1.EndpointConnector(
+      name: 'nasa',
+      endpoint: endpoints['nasa']!,
+      methodConnectors: {
+        'fetchSatelliteImagery': _i1.MethodConnector(
+          name: 'fetchSatelliteImagery',
+          params: {
+            'lat': _i1.ParameterDescription(
+              name: 'lat',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'lon': _i1.ParameterDescription(
+              name: 'lon',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'eventType': _i1.ParameterDescription(
+              name: 'eventType',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['nasa'] as _i8.NasaEndpoint).fetchSatelliteImagery(
+                    session,
+                    params['lat'],
+                    params['lon'],
+                    params['eventType'],
+                  ),
+        ),
+      },
+    );
+    connectors['search'] = _i1.EndpointConnector(
+      name: 'search',
+      endpoint: endpoints['search']!,
+      methodConnectors: {
+        'searchLocation': _i1.MethodConnector(
+          name: 'searchLocation',
+          params: {
+            'query': _i1.ParameterDescription(
+              name: 'query',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['search'] as _i9.SearchEndpoint).searchLocation(
+                    session,
+                    params['query'],
+                  ),
+        ),
+      },
+    );
     connectors['watchZone'] = _i1.EndpointConnector(
       name: 'watchZone',
       endpoint: endpoints['watchZone']!,
@@ -471,7 +642,7 @@ class Endpoints extends _i1.EndpointDispatch {
           params: {
             'watchZone': _i1.ParameterDescription(
               name: 'watchZone',
-              type: _i1.getType<_i11.WatchZone>(),
+              type: _i1.getType<_i15.WatchZone>(),
               nullable: false,
             ),
           },
@@ -479,7 +650,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['watchZone'] as _i7.WatchZoneEndpoint)
+              ) async => (endpoints['watchZone'] as _i10.WatchZoneEndpoint)
                   .createWatchZone(
                     session,
                     params['watchZone'],
@@ -492,8 +663,39 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['watchZone'] as _i7.WatchZoneEndpoint)
+              ) async => (endpoints['watchZone'] as _i10.WatchZoneEndpoint)
                   .getWatchZones(session),
+        ),
+      },
+    );
+    connectors['weather'] = _i1.EndpointConnector(
+      name: 'weather',
+      endpoint: endpoints['weather']!,
+      methodConnectors: {
+        'getWeatherForecast': _i1.MethodConnector(
+          name: 'getWeatherForecast',
+          params: {
+            'lat': _i1.ParameterDescription(
+              name: 'lat',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+            'lon': _i1.ParameterDescription(
+              name: 'lon',
+              type: _i1.getType<double>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['weather'] as _i11.WeatherEndpoint)
+                  .getWeatherForecast(
+                    session,
+                    params['lat'],
+                    params['lon'],
+                  ),
         ),
       },
     );
@@ -514,16 +716,16 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['greeting'] as _i8.GreetingEndpoint).hello(
+              ) async => (endpoints['greeting'] as _i12.GreetingEndpoint).hello(
                 session,
                 params['name'],
               ),
         ),
       },
     );
-    modules['serverpod_auth_idp'] = _i12.Endpoints()
+    modules['serverpod_auth_idp'] = _i16.Endpoints()
       ..initializeEndpoints(server);
-    modules['serverpod_auth_core'] = _i13.Endpoints()
+    modules['serverpod_auth_core'] = _i17.Endpoints()
       ..initializeEndpoints(server);
   }
 }

@@ -17,17 +17,21 @@ import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
     as _i3;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i4;
-import 'greetings/greeting.dart' as _i5;
-import 'investigation.dart' as _i6;
-import 'watch_zone.dart' as _i7;
-import 'world_event.dart' as _i8;
-import 'package:worldos_system_server/src/generated/world_event.dart' as _i9;
-import 'package:worldos_system_server/src/generated/investigation.dart' as _i10;
-import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i11;
+import 'event_media_payload.dart' as _i5;
+import 'greetings/greeting.dart' as _i6;
+import 'investigation.dart' as _i7;
+import 'watch_zone.dart' as _i8;
+import 'world_event.dart' as _i9;
+import 'camera_feed_payload.dart' as _i13;
+import 'package:worldos_system_server/src/generated/world_event.dart' as _i10;
+import 'package:worldos_system_server/src/generated/investigation.dart' as _i11;
+import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i12;
+export 'event_media_payload.dart';
 export 'greetings/greeting.dart';
 export 'investigation.dart';
 export 'watch_zone.dart';
 export 'world_event.dart';
+export 'camera_feed_payload.dart';
 
 class Protocol extends _i1.SerializationManagerServer {
   Protocol._();
@@ -353,45 +357,74 @@ class Protocol extends _i1.SerializationManagerServer {
       }
     }
 
-    if (t == _i5.Greeting) {
-      return _i5.Greeting.fromJson(data) as T;
+    if (t == _i13.CameraFeedPayload) {
+      return _i13.CameraFeedPayload.fromJson(data) as T;
     }
-    if (t == _i6.Investigation) {
-      return _i6.Investigation.fromJson(data) as T;
+    if (t == _i1.getType<_i13.CameraFeedPayload?>()) {
+      return (data != null ? _i13.CameraFeedPayload.fromJson(data) : null) as T;
     }
-    if (t == _i7.WatchZone) {
-      return _i7.WatchZone.fromJson(data) as T;
+    if (t == List<_i13.CameraFeedPayload>) {
+      return (data as List)
+          .map((e) => deserialize<_i13.CameraFeedPayload>(e))
+          .toList() as T;
     }
-    if (t == _i8.WorldEvent) {
-      return _i8.WorldEvent.fromJson(data) as T;
+    if (t == _i5.EventMediaPayload) {
+      return _i5.EventMediaPayload.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i5.Greeting?>()) {
-      return (data != null ? _i5.Greeting.fromJson(data) : null) as T;
+    if (t == _i6.Greeting) {
+      return _i6.Greeting.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i6.Investigation?>()) {
-      return (data != null ? _i6.Investigation.fromJson(data) : null) as T;
+    if (t == _i7.Investigation) {
+      return _i7.Investigation.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i7.WatchZone?>()) {
-      return (data != null ? _i7.WatchZone.fromJson(data) : null) as T;
+    if (t == _i8.WatchZone) {
+      return _i8.WatchZone.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i8.WorldEvent?>()) {
-      return (data != null ? _i8.WorldEvent.fromJson(data) : null) as T;
+    if (t == _i9.WorldEvent) {
+      return _i9.WorldEvent.fromJson(data) as T;
+    }
+    if (t == _i1.getType<_i5.EventMediaPayload?>()) {
+      return (data != null ? _i5.EventMediaPayload.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i6.Greeting?>()) {
+      return (data != null ? _i6.Greeting.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i7.Investigation?>()) {
+      return (data != null ? _i7.Investigation.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i8.WatchZone?>()) {
+      return (data != null ? _i8.WatchZone.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i9.WorldEvent?>()) {
+      return (data != null ? _i9.WorldEvent.fromJson(data) : null) as T;
     }
     if (t == List<String>) {
       return (data as List).map((e) => deserialize<String>(e)).toList() as T;
     }
-    if (t == List<_i9.WorldEvent>) {
-      return (data as List).map((e) => deserialize<_i9.WorldEvent>(e)).toList()
+    if (t == List<_i10.WorldEvent>) {
+      return (data as List).map((e) => deserialize<_i10.WorldEvent>(e)).toList()
           as T;
     }
-    if (t == List<_i10.Investigation>) {
+    if (t == List<_i11.Investigation>) {
       return (data as List)
-              .map((e) => deserialize<_i10.Investigation>(e))
+              .map((e) => deserialize<_i11.Investigation>(e))
               .toList()
           as T;
     }
-    if (t == List<_i11.WatchZone>) {
-      return (data as List).map((e) => deserialize<_i11.WatchZone>(e)).toList()
+    if (t == Map<String, dynamic>) {
+      return (data as Map).map(
+            (k, v) => MapEntry(deserialize<String>(k), deserialize<dynamic>(v)),
+          )
+          as T;
+    }
+    if (t == List<Map<String, dynamic>>) {
+      return (data as List)
+              .map((e) => deserialize<Map<String, dynamic>>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i12.WatchZone>) {
+      return (data as List).map((e) => deserialize<_i12.WatchZone>(e)).toList()
           as T;
     }
     try {
@@ -408,10 +441,12 @@ class Protocol extends _i1.SerializationManagerServer {
 
   static String? getClassNameForType(Type type) {
     return switch (type) {
-      _i5.Greeting => 'Greeting',
-      _i6.Investigation => 'Investigation',
-      _i7.WatchZone => 'WatchZone',
-      _i8.WorldEvent => 'WorldEvent',
+      _i13.CameraFeedPayload => 'CameraFeedPayload',
+      _i5.EventMediaPayload => 'EventMediaPayload',
+      _i6.Greeting => 'Greeting',
+      _i7.Investigation => 'Investigation',
+      _i8.WatchZone => 'WatchZone',
+      _i9.WorldEvent => 'WorldEvent',
       _ => null,
     };
   }
@@ -429,13 +464,17 @@ class Protocol extends _i1.SerializationManagerServer {
     }
 
     switch (data) {
-      case _i5.Greeting():
+      case _i13.CameraFeedPayload():
+        return 'CameraFeedPayload';
+      case _i5.EventMediaPayload():
+        return 'EventMediaPayload';
+      case _i6.Greeting():
         return 'Greeting';
-      case _i6.Investigation():
+      case _i7.Investigation():
         return 'Investigation';
-      case _i7.WatchZone():
+      case _i8.WatchZone():
         return 'WatchZone';
-      case _i8.WorldEvent():
+      case _i9.WorldEvent():
         return 'WorldEvent';
     }
     className = _i2.Protocol().getClassNameForObject(data);
@@ -459,17 +498,23 @@ class Protocol extends _i1.SerializationManagerServer {
     if (dataClassName is! String) {
       return super.deserializeByClassName(data);
     }
+    if (dataClassName == 'CameraFeedPayload') {
+      return deserialize<_i13.CameraFeedPayload>(data['data']);
+    }
+    if (dataClassName == 'EventMediaPayload') {
+      return deserialize<_i5.EventMediaPayload>(data['data']);
+    }
     if (dataClassName == 'Greeting') {
-      return deserialize<_i5.Greeting>(data['data']);
+      return deserialize<_i6.Greeting>(data['data']);
     }
     if (dataClassName == 'Investigation') {
-      return deserialize<_i6.Investigation>(data['data']);
+      return deserialize<_i7.Investigation>(data['data']);
     }
     if (dataClassName == 'WatchZone') {
-      return deserialize<_i7.WatchZone>(data['data']);
+      return deserialize<_i8.WatchZone>(data['data']);
     }
     if (dataClassName == 'WorldEvent') {
-      return deserialize<_i8.WorldEvent>(data['data']);
+      return deserialize<_i9.WorldEvent>(data['data']);
     }
     if (dataClassName.startsWith('serverpod.')) {
       data['className'] = dataClassName.substring(10);
@@ -507,12 +552,12 @@ class Protocol extends _i1.SerializationManagerServer {
       }
     }
     switch (t) {
-      case _i6.Investigation:
-        return _i6.Investigation.t;
-      case _i7.WatchZone:
-        return _i7.WatchZone.t;
-      case _i8.WorldEvent:
-        return _i8.WorldEvent.t;
+      case _i7.Investigation:
+        return _i7.Investigation.t;
+      case _i8.WatchZone:
+        return _i8.WatchZone.t;
+      case _i9.WorldEvent:
+        return _i9.WorldEvent.t;
     }
     return null;
   }

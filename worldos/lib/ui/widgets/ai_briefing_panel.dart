@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -45,68 +44,59 @@ class _AiBriefingPanelState extends State<AiBriefingPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          width: 320,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0C1017).withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.5),
-          ),
-          child: Column(
+    return Container(
+      width: 320,
+      decoration: BoxDecoration(
+        color: const Color(0xFF070B12).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+      ),
+      child: Column(
             children: [
               // Header Row
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 0.5)),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(CupertinoIcons.shield_fill, color: Color(0xFF38BDF8), size: 14),
-                        const SizedBox(width: 8),
-                        Text(
-                          'SITUATIONAL INTELLIGENCE',
-                          style: GoogleFonts.inter(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                          ),
+                    const Icon(CupertinoIcons.shield_fill, color: Color(0xFF38BDF8), size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'SITUATIONAL INTELLIGENCE',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: GoogleFonts.inter(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
                         ),
-                      ],
+                      ),
                     ),
-                    Row(
-                      children: [
-                        // Muted Region Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.04),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
-                          ),
-                          child: Text(
-                            'ASIA-PACIFIC',
-                            style: GoogleFonts.jetBrainsMono(
-                              color: Colors.white38,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
+                      ),
+                      child: Text(
+                        'ASIA-PACIFIC',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: Colors.white38,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 8),
-                        InkWell(
-                          onTap: widget.onClose,
-                          child: const Icon(CupertinoIcons.xmark, color: Colors.white54, size: 14),
-                        ),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: widget.onClose,
+                      child: const Icon(CupertinoIcons.xmark, color: Colors.white54, size: 14),
                     ),
                   ],
                 ),
@@ -129,10 +119,12 @@ class _AiBriefingPanelState extends State<AiBriefingPanel> {
                         ),
                       )
                     : SingleChildScrollView(
-                        padding: const EdgeInsets.all(12),
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         child: _buildIntelligenceContent(widget.briefingText),
                       ),
               ),
+
 
               // Quick Prompts (Modern rounded micro-action chips)
               Container(
@@ -218,9 +210,7 @@ class _AiBriefingPanelState extends State<AiBriefingPanel> {
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildIntelligenceContent(String rawText) {
