@@ -73,15 +73,82 @@ class TopBarState extends State<TopBar> {
     });
   }
 
+  Map<String, double>? parseCoordinates(String input) {
+    final clean = input.replaceAll('°', '').trim();
+    final regex = RegExp(
+      r'^([+-]?\d+(?:\.\d+)?)\s*([NSEW])?[\s,;]+([+-]?\d+(?:\.\d+)?)\s*([NSEW])?$',
+      caseSensitive: false,
+    );
+    final match = regex.firstMatch(clean);
+    if (match != null) {
+      double lat = double.parse(match.group(1)!);
+      String? latDir = match.group(2)?.toUpperCase();
+      if (latDir == 'S') lat = -lat.abs();
+
+      double lon = double.parse(match.group(3)!);
+      String? lonDir = match.group(4)?.toUpperCase();
+      if (lonDir == 'W') lon = -lon.abs();
+
+      if ((latDir == 'E' || latDir == 'W') && (lonDir == 'N' || lonDir == 'S')) {
+        final tempLat = lat;
+        final tempLatDir = latDir;
+        lat = lon;
+        latDir = lonDir;
+        lon = tempLat;
+        lonDir = tempLatDir;
+        if (latDir == 'S') lat = -lat.abs();
+        if (lonDir == 'W') lon = -lon.abs();
+      }
+
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        return {'lat': lat, 'lon': lon};
+      }
+    }
+    return null;
+  }
+
   void _onSearchChanged(String val) {
     _debounceTimer?.cancel();
-    if (val.trim().length < 2) {
+    final trimmed = val.trim();
+    if (trimmed.length < 2) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
         _isDropdownOpen = false;
       });
       widget.onDropdownVisibilityChanged?.call(false);
+      return;
+    }
+
+    final parsedCoords = parseCoordinates(trimmed);
+    if (parsedCoords != null) {
+      final lat = parsedCoords['lat']!;
+      final lon = parsedCoords['lon']!;
+      final targetTitle = 'Geospatial Target [${lat.toStringAsFixed(3)}°, ${lon.toStringAsFixed(3)}°]';
+
+      final coordResult = {
+        'displayName': 'FLY TO COORDINATES: ${lat.toStringAsFixed(3)}°, ${lon.toStringAsFixed(3)}°',
+        'latitude': lat,
+        'longitude': lon,
+        'targetTitle': targetTitle,
+        'isCoordinate': true,
+      };
+
+      setState(() {
+        _searchResults = [coordResult];
+        _isSearching = false;
+        _isDropdownOpen = true;
+      });
+      widget.onDropdownVisibilityChanged?.call(true);
+
+      // Fetch photon results in background to append if any
+      NasaService().searchPhotonGeocoding(val).then((photonResults) {
+        if (mounted && widget.searchController.text.trim() == trimmed) {
+          setState(() {
+            _searchResults = [coordResult, ...photonResults];
+          });
+        }
+      });
       return;
     }
 
@@ -103,9 +170,9 @@ class TopBarState extends State<TopBar> {
     // 1. Dismiss keyboard and unfocus search field
     FocusScope.of(context).unfocus();
 
-    final name = result['displayName']?.toString() ?? 'Location';
     final lat = (result['latitude'] as num?)?.toDouble() ?? 0.0;
     final lon = (result['longitude'] as num?)?.toDouble() ?? 0.0;
+    final name = result['targetTitle']?.toString() ?? result['displayName']?.toString() ?? 'Location';
 
     widget.searchController.text = name;
 
@@ -148,55 +215,31 @@ class TopBarState extends State<TopBar> {
                   Row(
                     children: [
                       Container(
-                        width: 7,
-                        height: 7,
+                        width: 30,
+                        height: 30,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF10B981),
                           shape: BoxShape.circle,
+                        ),
+                        child: Image.asset(
+                          'assets/images/worldos_logo.png',
+                          fit: BoxFit.contain,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Text(
                         'WORLDOS',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
+                        style: GoogleFonts.jetBrainsMono(
+                          color: const Color(0xFFF8FAFC),
                           fontSize: isNarrow ? 13 : 15,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.8,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.0,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(width: 16),
 
-                  if (!isNarrow) ...[
-                    // Status Badge Chip
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2), width: 0.5),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(CupertinoIcons.radiowaves_right, color: Color(0xFF10B981), size: 12),
-                          const SizedBox(width: 6),
-                          Text(
-                            '6 STREAMS LIVE',
-                            style: GoogleFonts.jetBrainsMono(
-                              color: const Color(0xFF10B981),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                  ],
+
 
                   // Unobtrusive Universal Search Field
                   Expanded(
@@ -220,7 +263,20 @@ class TopBarState extends State<TopBar> {
                         onChanged: _onSearchChanged,
                         onSubmitted: (query) {
                           dismissSearchDropdown();
-                          widget.onSearchSubmitted(query);
+                          FocusScope.of(context).unfocus();
+                          final parsedCoords = parseCoordinates(query);
+                          if (parsedCoords != null) {
+                            final lat = parsedCoords['lat']!;
+                            final lon = parsedCoords['lon']!;
+                            final targetTitle = 'Geospatial Target [${lat.toStringAsFixed(3)}°, ${lon.toStringAsFixed(3)}°]';
+                            if (widget.onLocationSelected != null) {
+                              widget.onLocationSelected!(lat, lon, targetTitle);
+                            } else {
+                              widget.onSearchSubmitted(query);
+                            }
+                          } else {
+                            widget.onSearchSubmitted(query);
+                          }
                         },
                       ),
                     ),
@@ -269,7 +325,7 @@ class TopBarState extends State<TopBar> {
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 500),
+                    constraints: const BoxConstraints(maxWidth: 500, maxHeight: 360),
                     margin: const EdgeInsets.only(top: 6),
                     child: PointerInterceptor(
                       intercepting: true,
@@ -285,6 +341,7 @@ class TopBarState extends State<TopBar> {
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
                             shrinkWrap: true,
+                            physics: const ClampingScrollPhysics(),
                             itemCount: _searchResults.length,
                             itemBuilder: (context, index) {
                               final result = _searchResults[index];

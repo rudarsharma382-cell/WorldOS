@@ -1,51 +1,258 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Title Branding -->
+  <title>WorldOS // Geospatial Intelligence Core</title>
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="worldos">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <!-- Main Favicon & Touch Icons -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+  <link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>worldos</title>
-  <link rel="manifest" href="manifest.json">
+  <!-- PWA Manifest link -->
+  <link rel="manifest" href="manifest.json" />
 
   <!-- Mapbox GL JS 3D Globe Engine -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
   <script src="worldos_mapbox_engine.js"></script>
+
+  <style>
+    /* Kill any default browser margins and white flashing */
+    html, body {
+      background-color: #030712;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* High-z-index Boot Splash Canvas */
+    #worldos-boot-splash {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2147483647;
+      overflow: hidden;
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #worldos-boot-video {
+      width: 100vw;
+      height: 100vh;
+      max-width: none !important;
+      max-height: none !important;
+      object-fit: cover !important; /* Stretches and scales to completely fill the screen */
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Micro-telemetry status line below the glowing logo */
+    #boot-status {
+      position: absolute;
+      bottom: 42px;
+      z-index: 10;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      color: #38BDF8;
+      font-size: 12px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+      animation: pulseText 2s ease-in-out infinite;
+      cursor: pointer;
+    }
+
+    #boot-audio-prompt {
+      position: absolute;
+      bottom: 18px;
+      z-index: 10;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      color: #10B981;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.85;
+      cursor: pointer;
+      text-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+
+    @keyframes pulseText {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.9; }
+    }
+
+    .boot-fade-out {
+      opacity: 0 !important;
+      transform: scale(1.04) !important;
+      pointer-events: none !important;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <!-- Ultra-Fast Pre-Flutter Splash -->
+  <div id="worldos-boot-splash" onclick="playBootMedia()">
+    <video
+      id="worldos-boot-video"
+      autoplay
+      muted
+      playsinline
+      src="assets/boot_sequence.mp4"
+    ></video>
+    <audio id="worldos-boot-audio" autoplay preload="auto">
+      <source src="boot_sound.mp3" type="audio/mpeg">
+      <source src="assets/boot_sound.mp3" type="audio/mpeg">
+      <source src="assets/audio/boot_sound.mp3" type="audio/mpeg">
+    </audio>
+    <div id="boot-status">INITIALIZING WORLDOS GEOSPATIAL INTELLIGENCE CORE...</div>
+    <div id="boot-audio-prompt">✦ CLICK ANYWHERE TO START TACTICAL AUDIO ✦</div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    // Flag to ensure the 6-second animation completes before dismiss
+    let videoCompleted = false;
+    let appReady = false;
+    let audioStarted = false;
+
+    const bootVideo = document.getElementById('worldos-boot-video');
+    const bootAudio = document.getElementById('worldos-boot-audio');
+    const bootContainer = document.getElementById('worldos-boot-splash');
+
+    // Web Audio API Context for sub-millisecond instant playback
+    let audioCtx = null;
+    let audioBuffer = null;
+
+    function initWebAudio() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+          fetch('boot_sound.mp3')
+            .then(r => r.arrayBuffer())
+            .then(buf => audioCtx.decodeAudioData(buf))
+            .then(decoded => { audioBuffer = decoded; })
+            .catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    initWebAudio();
+
+    function hidePrompt() {
+      const promptEl = document.getElementById('boot-audio-prompt');
+      if (promptEl) promptEl.style.display = 'none';
+    }
+
+    function triggerAudioPlayback() {
+      if (audioStarted) return;
+
+      let playedSuccess = false;
+
+      // 1. Try HTML5 Audio
+      if (bootAudio) {
+        bootAudio.currentTime = 0;
+        bootAudio.volume = 0.9;
+        const promise = bootAudio.play();
+        if (promise !== undefined) {
+          promise.then(() => {
+            audioStarted = true;
+            playedSuccess = true;
+            hidePrompt();
+          }).catch(() => {});
+        }
+      }
+
+      // 2. Try Web Audio Context buffer source as parallel unlock
+      if (!playedSuccess && audioCtx && audioBuffer) {
+        try {
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          const source = audioCtx.createBufferSource();
+          source.buffer = audioBuffer;
+          const gainNode = audioCtx.createGain();
+          gainNode.gain.value = 0.9;
+          source.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          source.start(0);
+          audioStarted = true;
+          hidePrompt();
+        } catch (_) {}
+      }
+    }
+
+    function playBootMedia() {
+      if (bootVideo) {
+        bootVideo.play().catch(() => {});
+      }
+      triggerAudioPlayback();
+    }
+
+    // Attach listeners on all possible user events
+    ['click', 'pointerdown', 'touchstart', 'keydown', 'mousedown', 'wheel'].forEach(evt => {
+      window.addEventListener(evt, playBootMedia, { capture: true });
+      document.addEventListener(evt, playBootMedia, { capture: true });
+    });
+
+    document.addEventListener('DOMContentLoaded', playBootMedia);
+    window.addEventListener('load', playBootMedia);
+
+    if (bootVideo) {
+      bootVideo.addEventListener('play', triggerAudioPlayback);
+      bootVideo.addEventListener('ended', () => {
+        videoCompleted = true;
+        checkAndDismiss();
+      });
+    }
+
+    // Failsafe timer (6.2s) in case ended event does not fire
+    setTimeout(() => {
+      videoCompleted = true;
+      checkAndDismiss();
+    }, 6200);
+
+    // Global hook callable from Flutter when Mapbox and telemetry are ready
+    window.signalAppReady = function() {
+      appReady = true;
+      checkAndDismiss();
+    };
+
+    function checkAndDismiss() {
+      if (videoCompleted && bootContainer) {
+        bootContainer.classList.add('boot-fade-out');
+        if (bootAudio) {
+          let vol = bootAudio.volume;
+          const fadeInterval = setInterval(() => {
+            if (vol > 0.1) {
+              vol -= 0.1;
+              bootAudio.volume = Math.max(0, vol);
+            } else {
+              clearInterval(fadeInterval);
+              bootAudio.pause();
+            }
+          }, 60);
+        }
+        setTimeout(() => {
+          if (bootContainer && bootContainer.parentNode) {
+            bootContainer.parentNode.removeChild(bootContainer);
+          }
+        }, 850);
+      }
+    }
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

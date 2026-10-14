@@ -17,17 +17,16 @@ import 'package:serverpod_client/serverpod_client.dart' as _i2;
 import 'dart:async' as _i3;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i4;
-import 'package:worldos_system_client/src/protocol/world_event.dart' as _i5;
-import 'package:worldos_system_client/src/protocol/investigation.dart' as _i6;
-import 'package:worldos_system_client/src/protocol/event_media_payload.dart'
-    as _i7;
-import 'package:worldos_system_client/src/protocol/watch_zone.dart' as _i8;
-import 'package:worldos_system_client/src/protocol/greetings/greeting.dart'
-    as _i9;
 import 'package:worldos_system_client/src/protocol/camera_feed_payload.dart'
-    as _i11;
-import 'protocol.dart' as _i10;
-export 'camera_feed_payload.dart';
+    as _i5;
+import 'package:worldos_system_client/src/protocol/world_event.dart' as _i6;
+import 'package:worldos_system_client/src/protocol/investigation.dart' as _i7;
+import 'package:worldos_system_client/src/protocol/event_media_payload.dart'
+    as _i8;
+import 'package:worldos_system_client/src/protocol/watch_zone.dart' as _i9;
+import 'package:worldos_system_client/src/protocol/greetings/greeting.dart'
+    as _i10;
+import 'protocol.dart' as _i11;
 
 /// By extending [EmailIdpBaseEndpoint], the email identity provider endpoints
 /// are made available on the server and enable the corresponding sign-in widget
@@ -273,12 +272,40 @@ class EndpointAi extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<String> askWorldOS(String query) =>
-      caller.callServerEndpoint<String>(
-        'ai',
-        'askWorldOS',
-        {'query': query},
-      );
+  _i3.Future<String> askWorldOS(
+    String query, [
+    String? telemetryContext,
+  ]) => caller.callServerEndpoint<String>(
+    'ai',
+    'askWorldOS',
+    {
+      'query': query,
+      'telemetryContext': telemetryContext,
+    },
+  );
+}
+
+/// {@category Endpoint}
+class EndpointCamera extends _i2.EndpointRef {
+  EndpointCamera(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'camera';
+
+  /// Queries Windy Webcams v3 REST API for public municipal CCTV feeds nearby (lat, lon, radiusKm)
+  _i3.Future<List<_i5.CameraFeedPayload>> getCamerasNearby(
+    double lat,
+    double lon, {
+    required int radiusKm,
+  }) => caller.callServerEndpoint<List<_i5.CameraFeedPayload>>(
+    'camera',
+    'getCamerasNearby',
+    {
+      'lat': lat,
+      'lon': lon,
+      'radiusKm': radiusKm,
+    },
+  );
 }
 
 /// {@category Endpoint}
@@ -288,11 +315,11 @@ class EndpointEvent extends _i2.EndpointRef {
   @override
   String get name => 'event';
 
-  _i3.Future<List<_i5.WorldEvent>> getActiveEvents(
+  _i3.Future<List<_i6.WorldEvent>> getActiveEvents(
     String? typeFilter,
     String? searchQuery,
     int limit,
-  ) => caller.callServerEndpoint<List<_i5.WorldEvent>>(
+  ) => caller.callServerEndpoint<List<_i6.WorldEvent>>(
     'event',
     'getActiveEvents',
     {
@@ -302,11 +329,11 @@ class EndpointEvent extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<List<_i5.WorldEvent>> getEventsNearLocation(
+  _i3.Future<List<_i6.WorldEvent>> getEventsNearLocation(
     double lat,
     double lon,
     double radiusKm,
-  ) => caller.callServerEndpoint<List<_i5.WorldEvent>>(
+  ) => caller.callServerEndpoint<List<_i6.WorldEvent>>(
     'event',
     'getEventsNearLocation',
     {
@@ -316,12 +343,32 @@ class EndpointEvent extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<_i5.WorldEvent> saveAndBroadcastEvent(_i5.WorldEvent event) =>
-      caller.callServerEndpoint<_i5.WorldEvent>(
+  _i3.Future<_i6.WorldEvent> saveAndBroadcastEvent(_i6.WorldEvent event) =>
+      caller.callServerEndpoint<_i6.WorldEvent>(
         'event',
         'saveAndBroadcastEvent',
         {'event': event},
       );
+}
+
+/// {@category Endpoint}
+class EndpointIntelligence extends _i2.EndpointRef {
+  EndpointIntelligence(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'intelligence';
+
+  _i3.Future<String> askWorldOS(
+    String query, [
+    String? telemetryContext,
+  ]) => caller.callServerEndpoint<String>(
+    'intelligence',
+    'askWorldOS',
+    {
+      'query': query,
+      'telemetryContext': telemetryContext,
+    },
+  );
 }
 
 /// {@category Endpoint}
@@ -331,16 +378,16 @@ class EndpointInvestigation extends _i2.EndpointRef {
   @override
   String get name => 'investigation';
 
-  _i3.Future<_i6.Investigation> createInvestigation(
-    _i6.Investigation investigation,
-  ) => caller.callServerEndpoint<_i6.Investigation>(
+  _i3.Future<_i7.Investigation> createInvestigation(
+    _i7.Investigation investigation,
+  ) => caller.callServerEndpoint<_i7.Investigation>(
     'investigation',
     'createInvestigation',
     {'investigation': investigation},
   );
 
-  _i3.Future<List<_i6.Investigation>> getInvestigations() =>
-      caller.callServerEndpoint<List<_i6.Investigation>>(
+  _i3.Future<List<_i7.Investigation>> getInvestigations() =>
+      caller.callServerEndpoint<List<_i7.Investigation>>(
         'investigation',
         'getInvestigations',
         {},
@@ -355,11 +402,11 @@ class EndpointMedia extends _i2.EndpointRef {
   String get name => 'media';
 
   /// Multi-Tier Visual Pipeline for (lat, lon) coordinates
-  _i3.Future<_i7.EventMediaPayload> getLocationMedia(
+  _i3.Future<_i8.EventMediaPayload> getLocationMedia(
     double lat,
     double lon,
     String? query,
-  ) => caller.callServerEndpoint<_i7.EventMediaPayload>(
+  ) => caller.callServerEndpoint<_i8.EventMediaPayload>(
     'media',
     'getLocationMedia',
     {
@@ -416,15 +463,15 @@ class EndpointWatchZone extends _i2.EndpointRef {
   @override
   String get name => 'watchZone';
 
-  _i3.Future<_i8.WatchZone> createWatchZone(_i8.WatchZone watchZone) =>
-      caller.callServerEndpoint<_i8.WatchZone>(
+  _i3.Future<_i9.WatchZone> createWatchZone(_i9.WatchZone watchZone) =>
+      caller.callServerEndpoint<_i9.WatchZone>(
         'watchZone',
         'createWatchZone',
         {'watchZone': watchZone},
       );
 
-  _i3.Future<List<_i8.WatchZone>> getWatchZones() =>
-      caller.callServerEndpoint<List<_i8.WatchZone>>(
+  _i3.Future<List<_i9.WatchZone>> getWatchZones() =>
+      caller.callServerEndpoint<List<_i9.WatchZone>>(
         'watchZone',
         'getWatchZones',
         {},
@@ -462,35 +509,11 @@ class EndpointGreeting extends _i2.EndpointRef {
   String get name => 'greeting';
 
   /// Returns a personalized greeting message: "Hello {name}".
-  _i3.Future<_i9.Greeting> hello(String name) =>
-      caller.callServerEndpoint<_i9.Greeting>(
+  _i3.Future<_i10.Greeting> hello(String name) =>
+      caller.callServerEndpoint<_i10.Greeting>(
         'greeting',
         'hello',
         {'name': name},
-      );
-}
-
-/// {@category Endpoint}
-class EndpointCamera extends _i2.EndpointRef {
-  EndpointCamera(_i2.EndpointCaller caller) : super(caller);
-
-  @override
-  String get name => 'camera';
-
-  /// Queries Windy Webcams v3 REST API for public municipal CCTV feeds nearby
-  _i3.Future<List<_i11.CameraFeedPayload>> getCamerasNearby(
-    double lat,
-    double lon, {
-    int radiusKm = 30,
-  }) =>
-      caller.callServerEndpoint<List<_i11.CameraFeedPayload>>(
-        'camera',
-        'getCamerasNearby',
-        {
-          'lat': lat,
-          'lon': lon,
-          'radiusKm': radiusKm,
-        },
       );
 }
 
@@ -525,7 +548,7 @@ class Client extends _i2.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i10.Protocol(),
+         _i11.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -537,7 +560,9 @@ class Client extends _i2.ServerpodClientShared {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
     ai = EndpointAi(this);
+    camera = EndpointCamera(this);
     event = EndpointEvent(this);
+    intelligence = EndpointIntelligence(this);
     investigation = EndpointInvestigation(this);
     media = EndpointMedia(this);
     nasa = EndpointNasa(this);
@@ -545,7 +570,6 @@ class Client extends _i2.ServerpodClientShared {
     watchZone = EndpointWatchZone(this);
     weather = EndpointWeather(this);
     greeting = EndpointGreeting(this);
-    camera = EndpointCamera(this);
     modules = Modules(this);
   }
 
@@ -555,7 +579,11 @@ class Client extends _i2.ServerpodClientShared {
 
   late final EndpointAi ai;
 
+  late final EndpointCamera camera;
+
   late final EndpointEvent event;
+
+  late final EndpointIntelligence intelligence;
 
   late final EndpointInvestigation investigation;
 
@@ -571,8 +599,6 @@ class Client extends _i2.ServerpodClientShared {
 
   late final EndpointGreeting greeting;
 
-  late final EndpointCamera camera;
-
   late final Modules modules;
 
   @override
@@ -580,7 +606,9 @@ class Client extends _i2.ServerpodClientShared {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
     'ai': ai,
+    'camera': camera,
     'event': event,
+    'intelligence': intelligence,
     'investigation': investigation,
     'media': media,
     'nasa': nasa,
@@ -588,7 +616,6 @@ class Client extends _i2.ServerpodClientShared {
     'watchZone': watchZone,
     'weather': weather,
     'greeting': greeting,
-    'camera': camera,
   };
 
   @override

@@ -12,6 +12,7 @@ import 'dart:ui_web' as ui_web;
 import 'package:web/web.dart' as web;
 import 'dart:js_interop';
 
+import '../config/env_config.dart';
 import '../models/watch_zone.dart';
 import '../models/world_event.dart';
 import 'globe_models.dart';
@@ -203,7 +204,7 @@ class WorldOSGlobe3DState extends State<WorldOSGlobe3D> with TickerProviderState
   void _initMapboxEngine() {
     if (!kIsWeb) return;
 
-    const mapboxToken = String.fromEnvironment('MAPBOX_TOKEN', defaultValue: 'YOUR_MAPBOX_ACCESS_TOKEN');
+    final mapboxToken = EnvConfig.mapboxToken;
 
     final onMarkerClickJs = ((JSString propsJson) {
       final jsonStr = propsJson.toDart;
@@ -350,11 +351,11 @@ class WorldOSGlobe3DState extends State<WorldOSGlobe3D> with TickerProviderState
   /// Executes cinematic camera fly-to physics interpolation with 3D terrain elevation perspective
   void flyTo(double targetLat, double targetLon, [double? targetZoom, double? pitch, double? bearing, double? speed, double? curve]) {
     if (kIsWeb) {
-      final finalZoom = (targetZoom ?? 11.5).clamp(1.2, 16.0);
-      final finalPitch = (pitch ?? 60.0).clamp(0.0, 75.0);
-      final finalBearing = bearing ?? -15.0;
-      final finalSpeed = speed ?? 1.1;
-      final finalCurve = curve ?? 1.3;
+      final finalZoom = (targetZoom ?? 5.5).clamp(1.2, 16.0);
+      final finalPitch = (pitch ?? 0.0).clamp(0.0, 75.0);
+      final finalBearing = bearing ?? 0.0;
+      final finalSpeed = speed ?? 1.2;
+      final finalCurve = curve ?? 1.2;
 
       _mapboxFlyTo(
         targetLat.toJS,

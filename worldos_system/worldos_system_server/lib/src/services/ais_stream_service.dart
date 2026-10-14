@@ -13,6 +13,7 @@ class AisStreamService {
   WebSocket? _webSocket;
   bool _isConnecting = false;
   Timer? _reconnectTimer;
+  final Map<String, String> _vesselDestinationCache = {};
 
   static const String defaultAisKey = '608ae8357c3a3d148cd04b81633d14cc15fe7ab7';
 
@@ -37,7 +38,8 @@ class AisStreamService {
             [-90.0, -180.0],
             [90.0, 180.0]
           ]
-        ]
+        ],
+        "FilterMessageTypes": ["PositionReport", "ShipStaticData"]
       });
 
       _webSocket!.add(subscribeMsg);
@@ -50,8 +52,16 @@ class AisStreamService {
             final meta = data['MetaData'] ?? {};
             final body = data['Message'] ?? {};
 
-            final mmsi = meta['MMSI'] ?? body['PositionReport']?['UserID'] ?? 0;
+            final mmsi = meta['MMSI'] ?? body['PositionReport']?['UserID'] ?? body['ShipStaticData']?['UserID'] ?? 0;
             final shipName = meta['ShipName']?.toString().trim() ?? 'Vessel $mmsi';
+
+            if (msgType == 'ShipStaticData' && body['ShipStaticData'] != null) {
+              final staticData = body['ShipStaticData'];
+              final dest = staticData['Destination']?.toString().trim();
+              if (dest != null && dest.isNotEmpty && mmsi != 0) {
+                _vesselDestinationCache[mmsi.toString()] = dest;
+              }
+            }
 
             if (msgType == 'PositionReport' && body['PositionReport'] != null) {
               final pos = body['PositionReport'];
@@ -62,11 +72,12 @@ class AisStreamService {
 
               if (lat != null && lon != null && lat != 0.0 && lon != 0.0) {
                 final extId = 'ship_$mmsi';
+                final destinationPort = _vesselDestinationCache[mmsi.toString()] ?? 'HIGH SEAS EN ROUTE';
                 final event = WorldEvent(
                   externalId: extId,
                   type: 'SHIP',
                   title: 'Vessel $shipName (MMSI $mmsi)',
-                  description: 'Live maritime AIS vessel telemetry. Course Over Ground: ${cog.toStringAsFixed(1)}°, Speed Over Ground: ${sog.toStringAsFixed(1)} knots.',
+                  description: 'Live maritime AIS vessel telemetry. Course Over Ground: ${cog.toStringAsFixed(1)}°, Speed Over Ground: ${sog.toStringAsFixed(1)} knots. Destination: $destinationPort.',
                   latitude: lat,
                   longitude: lon,
                   altitude: 0.0,
@@ -82,6 +93,8 @@ class AisStreamService {
                     'ship_name': shipName,
                     'cog': cog,
                     'sog': sog,
+                    'destination': destinationPort,
+                    'flag': meta['Flag'] ?? 'International',
                   }),
                 );
 

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:serverpod/serverpod.dart';
 import '../generated/protocol.dart';
+import '../services/hf_ai_service.dart';
 
 class AiEndpoint extends Endpoint {
   Future<String> generateBriefing(
@@ -23,90 +24,20 @@ class AiEndpoint extends Endpoint {
     }).toList();
 
     final region = regionName ?? 'Selected Region';
-    if (nearby.isEmpty) {
-      return '''
-WORLDOS INTELLIGENCE BRIEFING — $region
-────────────────────────────────────────
-Status: NOMINAL (No high-severity events detected within ${radiusKm.toInt()} km).
-Monitored Data Feeds: USGS Earthquakes, NASA EONET Disasters, ISS Orbital Tracking, OpenWeather Radar.
-Recommendation: Keep watch zones active to receive immediate real-time alerts.
-''';
-    }
+    final telemetry = nearby.map((e) => '- ${e.title} (Severity: ${e.severity}, Source: ${e.source})').join('\n');
 
-    final earthquakes = nearby.where((e) => e.type == 'EARTHQUAKE').toList();
-    final weather = nearby.where((e) => e.type == 'WEATHER' || e.type == 'STORM').toList();
-    final fires = nearby.where((e) => e.type == 'WILDFIRE').toList();
-    final satellites = nearby.where((e) => e.type == 'SATELLITE').toList();
-
-    final StringBuffer sb = StringBuffer();
-    sb.writeln('WORLDOS INTELLIGENCE BRIEFING — ${region.toUpperCase()}');
-    sb.writeln('────────────────────────────────────────');
-    sb.writeln('Active Events Detected: ${nearby.length} within ${radiusKm.toInt()} km radius.');
-    sb.writeln();
-
-    if (earthquakes.isNotEmpty) {
-      final maxEq = earthquakes.reduce((a, b) => a.severity > b.severity ? a : b);
-      sb.writeln('🌋 Seismic Activity (${earthquakes.length} events):');
-      sb.writeln('  • Peak Event: M${maxEq.severity.toStringAsFixed(1)} — ${maxEq.title}');
-      sb.writeln('  • Source: ${maxEq.source}');
-      sb.writeln();
-    }
-
-    if (weather.isNotEmpty) {
-      sb.writeln('🌩 Meteorological Systems (${weather.length} events):');
-      sb.writeln('  • Active System: ${weather.first.title}');
-      sb.writeln('  • Severity: Level ${weather.first.severity.toStringAsFixed(1)}/10');
-      sb.writeln();
-    }
-
-    if (fires.isNotEmpty) {
-      sb.writeln('🔥 Thermal & Wildfire Anomaly (${fires.length} active zones):');
-      sb.writeln('  • Major Cluster: ${fires.first.title}');
-      sb.writeln();
-    }
-
-    if (satellites.isNotEmpty) {
-      sb.writeln('🛰 Orbital Objects Overhead (${satellites.length} tracked):');
-      sb.writeln('  • Primary Object: ${satellites.first.title} (${satellites.first.latitude.toStringAsFixed(2)}°, ${satellites.first.longitude.toStringAsFixed(2)}°)');
-      sb.writeln();
-    }
-
-    sb.writeln('DATA SOURCE INTEGRITY:');
-    sb.writeln('• Multi-source telemetry verified. All events strictly grounded in live backend database feeds.');
-
-    return sb.toString();
+    return await HfAiService.generateBriefing(
+      session: session,
+      userPrompt: 'Generate intelligence briefing for $region',
+      liveTelemetryContext: telemetry.isNotEmpty ? telemetry : 'Region status nominal.',
+    );
   }
 
-  Future<String> askWorldOS(Session session, String query) async {
-    final q = query.toLowerCase();
-    double targetLat = 0;
-    double targetLon = 0;
-    String region = 'Global';
-
-    if (q.contains('japan') || q.contains('tokyo')) {
-      targetLat = 36.2048;
-      targetLon = 138.2529;
-      region = 'Japan';
-    } else if (q.contains('india') || q.contains('delhi')) {
-      targetLat = 28.6139;
-      targetLon = 77.2090;
-      region = 'India';
-    } else if (q.contains('europe') || q.contains('london') || q.contains('paris')) {
-      targetLat = 48.8566;
-      targetLon = 2.3522;
-      region = 'Europe';
-    } else if (q.contains('usa') || q.contains('america') || q.contains('california')) {
-      targetLat = 37.7749;
-      targetLon = -122.4194;
-      region = 'North America';
-    }
-
-    return generateBriefing(
-      session,
-      targetLat,
-      targetLon,
-      3000.0,
-      region,
+  Future<String> askWorldOS(Session session, String query, [String? telemetryContext]) async {
+    return await HfAiService.generateBriefing(
+      session: session,
+      userPrompt: query,
+      liveTelemetryContext: telemetryContext,
     );
   }
 

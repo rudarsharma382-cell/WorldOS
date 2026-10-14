@@ -12,10 +12,14 @@ jwtRefresh:
 ai:
   - generateBriefing:
   - askWorldOS:
+camera:
+  - getCamerasNearby:
 event:
   - getActiveEvents:
   - getEventsNearLocation:
   - saveAndBroadcastEvent:
+intelligence:
+  - askWorldOS:
 investigation:
   - createInvestigation:
   - getInvestigations:

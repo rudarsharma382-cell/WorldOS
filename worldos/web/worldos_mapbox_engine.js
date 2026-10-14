@@ -2,6 +2,8 @@
 window.WorldOSMapboxEngine = {
   map: null,
   markers: [],
+  pendingMarkers: null,
+  isCustomToken: false,
   onMarkerClickCallback: null,
   onCameraChangedCallback: null,
   onLocationSelectedCallback: null,
@@ -11,7 +13,7 @@ window.WorldOSMapboxEngine = {
 
   init: function(containerId, accessToken, onMarkerClickCb, onCameraChangedCb, onLocationSelectedCb) {
     if (typeof mapboxgl === 'undefined') {
-      console.error('Mapbox GL JS is not loaded yet.');
+      console.warn('Mapbox GL JS is not loaded yet.');
       return;
     }
 
@@ -19,9 +21,49 @@ window.WorldOSMapboxEngine = {
     if (onCameraChangedCb) this.onCameraChangedCallback = onCameraChangedCb;
     if (onLocationSelectedCb) this.onLocationSelectedCallback = onLocationSelectedCb;
 
-    mapboxgl.accessToken = accessToken || 'YOUR_MAPBOX_ACCESS_TOKEN';
+    const activeToken = (accessToken && accessToken.startsWith('pk.')) ? accessToken : 'YOUR_MAPBOX_ACCESS_TOKEN';
+    this.isCustomToken = !!accessToken && accessToken.startsWith('pk.');
+    mapboxgl.accessToken = activeToken;
 
     const self = this;
+
+    const rasterGlobeStyle = {
+      version: 8,
+      name: 'WorldOS High-Res Satellite Globe',
+      projection: {
+        name: 'globe'
+      },
+      sources: {
+        'esri-world-imagery': {
+          type: 'raster',
+          tiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          ],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution: 'Esri, Maxar, Earthstar Geographics'
+        }
+      },
+      layers: [
+        {
+          id: 'background',
+          type: 'background',
+          paint: {
+            'background-color': '#02040A'
+          }
+        },
+        {
+          id: 'esri-world-imagery-layer',
+          type: 'raster',
+          source: 'esri-world-imagery',
+          minzoom: 0,
+          maxzoom: 19
+        }
+      ]
+    };
+
+    const targetStyle = 'mapbox://styles/mapbox/satellite-streets-v12';
 
     const setupMap = function() {
       const container = document.getElementById(containerId);
@@ -30,7 +72,6 @@ window.WorldOSMapboxEngine = {
         return;
       }
 
-      // Ensure container expands to 100% of parent screen viewport with explicit dark background
       container.style.width = '100vw';
       container.style.height = '100vh';
       container.style.position = 'absolute';
@@ -39,7 +80,7 @@ window.WorldOSMapboxEngine = {
       container.style.margin = '0px';
       container.style.padding = '0px';
       container.style.border = 'none';
-      container.style.backgroundColor = '#000000';
+      container.style.backgroundColor = '#02040A';
 
       if (self.map) {
         if (self.map.getContainer() === container && document.body.contains(container)) {
@@ -58,7 +99,7 @@ window.WorldOSMapboxEngine = {
       try {
         self.map = new mapboxgl.Map({
           container: containerId,
-          style: 'mapbox://styles/mapbox/satellite-streets-v12',
+          style: targetStyle,
           projection: 'globe',
           center: [78.9629, 20.5937],
           zoom: 1.8,
@@ -69,9 +110,9 @@ window.WorldOSMapboxEngine = {
           maxZoom: 16.0,
           maxPitch: 75,
           renderWorldCopies: true,
-          pitchWithRotate: true,      // UNLOCKED: Re-enable pitch on right-click drag or two-finger swipe
-          dragRotate: true,           // UNLOCKED: Re-enable camera rotation and tilting
-          touchPitch: true,           // UNLOCKED: Re-enable touch pitch gestures
+          pitchWithRotate: true,
+          dragRotate: true,
+          touchPitch: true,
           dragPan: {
             inertia: false,
             linearity: 0.25,
@@ -79,14 +120,12 @@ window.WorldOSMapboxEngine = {
           }
         });
 
-        // UNLOCKED: Max pitch set to 75 to reveal 3D DEM terrain ridges
         self.map.setMaxPitch(75);
         self.map.setMinPitch(0);
         if (self.map.keyboard) {
           self.map.keyboard.enable();
         }
 
-        // Dynamic Pitch on Zoom: Tilt up for mountains on zoom-in, level back to 0 on space orbit zoom-out
         self.map.on('zoom', () => {
           if (!self.map || self.userInteracting) return;
           const z = self.map.getZoom();
@@ -97,15 +136,28 @@ window.WorldOSMapboxEngine = {
           }
         });
       } catch (err) {
-        console.error('Failed to instantiate Mapbox GL Map:', err);
-        return;
+        console.warn('Mapbox GL Map creation warning, attempting fallback raster style:', err);
+        try {
+          self.map = new mapboxgl.Map({
+            container: containerId,
+            style: rasterGlobeStyle,
+            projection: 'globe',
+            center: [78.9629, 20.5937],
+            zoom: 1.8,
+            attributionControl: false
+          });
+        } catch (fbErr) {
+          console.error('Fatal WebGL Map Initialization Failure:', fbErr);
+          return;
+        }
       }
 
       self.map.on('error', (e) => {
-        console.error('Mapbox runtime error:', e);
+        if (e && e.error && (e.error.status === 401 || e.error.status === 403)) {
+          return;
+        }
       });
 
-      // Strict user gesture listeners to kill auto-rotation instantly
       const stopAllSpin = function() {
         if (self.autoRotateAnimation) {
           cancelAnimationFrame(self.autoRotateAnimation);
@@ -120,7 +172,6 @@ window.WorldOSMapboxEngine = {
       self.map.on('wheel', stopAllSpin);
       self.map.on('dragstart', stopAllSpin);
 
-      // ResizeObserver continuously keeps WebGL viewport synchronized with container dimensions
       if (window.ResizeObserver) {
         const ro = new ResizeObserver(() => {
           if (self.map) {
@@ -133,49 +184,68 @@ window.WorldOSMapboxEngine = {
       const applyStyleSettings = function() {
         if (!self.map) return;
 
-        // 1. Set Fog to pure dark void (Erasing milky smog layer)
-        self.map.setFog({
-          'color': '#000000',
-          'high-color': '#020611',
-          'space-color': '#000000',
-          'horizon-blend': 0.0,
-          'star-intensity': 0.9
-        });
-
-        // 2. Remove default sun glare / ambient white wash
-        if (self.map.setLight) {
-          self.map.setLight({
-            anchor: 'viewport',
-            color: '#ffffff',
-            intensity: 0.35 // Lowers specular blowout on landmasses
+        // 1. Set Vibrant Orbital Atmosphere (Cyan halo over deep space)
+        try {
+          self.map.setFog({
+            'color': '#1E293B',
+            'high-color': '#0284C7',
+            'space-color': '#02040A',
+            'horizon-blend': 0.15,
+            'star-intensity': 0.8
           });
+        } catch(e) {}
+
+        // 2. Set Light Settings for bright Earth illumination
+        try {
+          if (self.map.setLights) {
+            self.map.setLights([
+              {
+                id: 'flat-light',
+                type: 'flat',
+                properties: {
+                  color: '#ffffff',
+                  intensity: 0.8
+                }
+              }
+            ]);
+          } else if (self.map.setLight) {
+            self.map.setLight({
+              anchor: 'viewport',
+              color: '#ffffff',
+              intensity: 0.8
+            });
+          }
+        } catch(e) {}
+
+        if (self.isCustomToken) {
+          try {
+            if (!self.map.getSource('mapbox-dem')) {
+              self.map.addSource('mapbox-dem', {
+                type: 'raster-dem',
+                url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                tileSize: 512,
+                maxzoom: 14
+              });
+              self.map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.1 });
+            }
+          } catch(e) {}
         }
 
-        // 3. Add Realistic 3D Terrain Elevation (DEM) with tuned contrast
-        if (!self.map.getSource('mapbox-dem')) {
-          self.map.addSource('mapbox-dem', {
-            type: 'raster-dem',
-            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-            tileSize: 512,
-            maxzoom: 14
-          });
-          self.map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.1 });
-        }
-
-        // Load commercial airliner silhouette icon, ship chevron icon, and camera reticle icon
         self.createAircraftIcon('airplane-icon', '#38BDF8', '#0284C7');
         self.createChevronIcon('ship-chevron', '#10B981', '#047857');
+        self.createTacticalShipIcon('tactical-ship-icon', '#06B6D4', '#083344');
         self.createCameraIcon('camera-reticle', '#22C55E', '#15803D');
 
-        // Initialize GeoJSON sources for telemetry layers
         self.initGeoJsonSources();
 
-        // Start subtle globe auto-rotation loop if enabled
+        if (self.pendingMarkers) {
+          self.updateMarkers(self.pendingMarkers);
+        }
+
         if (self.autoRotate) {
           self.startAutoRotation();
         }
 
-        // Trigger immediate and staggered WebGL viewport resizes
         self.map.resize();
         [50, 150, 300, 600, 1200].forEach(ms => setTimeout(() => { if (self.map) self.map.resize(); }, ms));
       };
@@ -186,7 +256,6 @@ window.WorldOSMapboxEngine = {
         self.map.once('style.load', applyStyleSettings);
       }
 
-      // Handle user camera interactions
       self.map.on('mouseup', () => { self.userInteracting = false; });
       self.map.on('touchend', () => { self.userInteracting = false; });
       self.map.on('moveend', () => {
@@ -196,7 +265,6 @@ window.WorldOSMapboxEngine = {
         }
       });
 
-      // Global map tap handler for location selection
       self.map.on('click', (e) => {
         const layers = ['flights-layer', 'fires-heat-layer', 'quakes-layer', 'ships-layer', 'general-events-layer'];
         const features = self.map.queryRenderedFeatures(e.point, { layers: layers });
@@ -270,6 +338,38 @@ window.WorldOSMapboxEngine = {
     ctx.lineTo(6, 26);
     ctx.closePath();
     ctx.fill();
+
+    const imageData = ctx.getImageData(0, 0, size, size);
+    if (!this.map.hasImage(name)) {
+      this.map.addImage(name, imageData, { pixelRatio: 2 });
+    }
+  },
+
+  createTacticalShipIcon: function(name, fillColor, strokeColor) {
+    if (!this.map) return;
+    const size = 32;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Draw pointed ship hull (Cyan tint with white stroke)
+    ctx.fillStyle = fillColor || '#06B6D4';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(16, 2);   // Bow (pointed front)
+    ctx.lineTo(24, 12);  // Starboard
+    ctx.lineTo(24, 28);  // Starboard stern
+    ctx.lineTo(8, 28);   // Port stern
+    ctx.lineTo(8, 12);   // Port bow
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Small bridge superstructure box
+    ctx.fillStyle = strokeColor || '#083344';
+    ctx.fillRect(12, 16, 8, 8);
 
     const imageData = ctx.getImageData(0, 0, size, size);
     if (!this.map.hasImage(name)) {
@@ -406,8 +506,8 @@ window.WorldOSMapboxEngine = {
         type: 'symbol',
         source: 'worldos-ships',
         layout: {
-          'icon-image': 'ship-chevron',
-          'icon-size': 0.55,
+          'icon-image': 'tactical-ship-icon',
+          'icon-size': 0.6,
           'icon-rotate': ['get', 'heading'],
           'icon-rotation-alignment': 'map',
           'icon-allow-overlap': true,
@@ -575,24 +675,27 @@ window.WorldOSMapboxEngine = {
     this.autoRotate = false;
     this.userInteracting = true;
 
-    const targetZoom = zoom !== undefined && zoom !== null ? Math.min(Math.max(zoom, 1.2), 16.0) : 11.5;
-    const targetPitch = pitch !== undefined && pitch !== null ? Math.min(Math.max(pitch, 0), 75) : 60;
+    const targetZoom = zoom !== undefined && zoom !== null ? Math.min(Math.max(zoom, 1.2), 16.0) : 5.5;
+    const targetPitch = pitch !== undefined && pitch !== null ? Math.min(Math.max(pitch, 0), 75) : 0;
+    const targetBearing = bearing !== undefined && bearing !== null ? bearing : 0;
 
     this.map.flyTo({
       center: [lon, lat],
       zoom: targetZoom,
       pitch: targetPitch,
-      bearing: bearing !== undefined && bearing !== null ? bearing : -15,
-      speed: speed !== undefined && speed !== null ? speed : 1.1,
-      curve: curve !== undefined && curve !== null ? curve : 1.3,
+      bearing: targetBearing,
+      speed: speed !== undefined && speed !== null ? speed : 1.2,
+      curve: curve !== undefined && curve !== null ? curve : 1.2,
       essential: true
     });
   },
 
   updateMarkers: function(markersJsonString) {
-    if (!this.map) return;
+    this.pendingMarkers = markersJsonString;
+    if (!this.map || !this.map.isStyleLoaded()) return;
     try {
       const markers = typeof markersJsonString === 'string' ? JSON.parse(markersJsonString) : markersJsonString;
+      if (!Array.isArray(markers)) return;
       
       const flightFeatures = [];
       const fireFeatures = [];

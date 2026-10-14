@@ -7,6 +7,7 @@
 // ignore_for_file: public_member_api_docs
 // ignore_for_file: type_literal_in_constant_pattern
 // ignore_for_file: use_super_parameters
+// ignore_for_file: invalid_use_of_internal_member
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 
@@ -71,7 +72,6 @@ abstract class CameraFeedPayload implements _i1.SerializableModel {
     String? fullImageUrl,
     String? updatedAt,
   });
-
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -92,8 +92,6 @@ abstract class CameraFeedPayload implements _i1.SerializableModel {
   }
 }
 
-class _Undefined {}
-
 class _CameraFeedPayloadImpl extends CameraFeedPayload {
   _CameraFeedPayloadImpl({
     required String id,
@@ -104,34 +102,36 @@ class _CameraFeedPayloadImpl extends CameraFeedPayload {
     required String fullImageUrl,
     required String updatedAt,
   }) : super._(
-          id: id,
-          title: title,
-          latitude: latitude,
-          longitude: longitude,
-          previewImageUrl: previewImageUrl,
-          fullImageUrl: fullImageUrl,
-          updatedAt: updatedAt,
-        );
+         id: id,
+         title: title,
+         latitude: latitude,
+         longitude: longitude,
+         previewImageUrl: previewImageUrl,
+         fullImageUrl: fullImageUrl,
+         updatedAt: updatedAt,
+       );
 
+  /// Returns a shallow copy of this [CameraFeedPayload]
+  /// with some or all fields replaced by the given arguments.
   @_i1.useResult
   @override
   CameraFeedPayload copyWith({
-    Object? id = _Undefined,
-    Object? title = _Undefined,
-    Object? latitude = _Undefined,
-    Object? longitude = _Undefined,
-    Object? previewImageUrl = _Undefined,
-    Object? fullImageUrl = _Undefined,
-    Object? updatedAt = _Undefined,
+    String? id,
+    String? title,
+    double? latitude,
+    double? longitude,
+    String? previewImageUrl,
+    String? fullImageUrl,
+    String? updatedAt,
   }) {
     return CameraFeedPayload(
-      id: id is String ? id : this.id,
-      title: title is String ? title : this.title,
-      latitude: latitude is double ? latitude : this.latitude,
-      longitude: longitude is double ? longitude : this.longitude,
-      previewImageUrl: previewImageUrl is String ? previewImageUrl : this.previewImageUrl,
-      fullImageUrl: fullImageUrl is String ? fullImageUrl : this.fullImageUrl,
-      updatedAt: updatedAt is String ? updatedAt : this.updatedAt,
+      id: id ?? this.id,
+      title: title ?? this.title,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      previewImageUrl: previewImageUrl ?? this.previewImageUrl,
+      fullImageUrl: fullImageUrl ?? this.fullImageUrl,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

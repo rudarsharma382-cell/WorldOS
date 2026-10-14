@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 import '../models/watch_zone.dart';
 import '../models/investigation.dart';
 import 'ingestion_service.dart';
-
 import 'nasa_service.dart';
 
 class ServerpodService {
@@ -86,7 +88,7 @@ class ServerpodService {
         'latitude': lat + 0.002,
         'longitude': lon + 0.003,
         'previewImageUrl': 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80',
-        'fullImageUrl': 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=1200&q=80',
+        'fullImageUrl': 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=1200&q=80',
         'updatedAt': DateTime.now().toIso8601String(),
       },
       {
@@ -103,27 +105,83 @@ class ServerpodService {
 
   void initialize() {
     ingestionService.initialize();
+    final bool isStorageInitialized = _loadPersistedData();
     
-    // Seed default Watch Zones
-    _watchZones.add(WatchZone(
-      id: 'wz_japan',
-      name: 'Japan Seismic Watch Zone',
-      latitude: 36.2048,
-      longitude: 138.2529,
-      radiusKm: 1000.0,
-      trackedTypes: ['EARTHQUAKE', 'WEATHER', 'STORM'],
-      createdAt: DateTime.now(),
-    ));
+    // Seed default Watch Zones only on initial setup before user modifications
+    if (_watchZones.isEmpty && !isStorageInitialized) {
+      _watchZones.add(WatchZone(
+        id: 'wz_japan',
+        name: 'Japan Seismic Watch Zone',
+        latitude: 36.2048,
+        longitude: 138.2529,
+        radiusKm: 1000.0,
+        trackedTypes: ['EARTHQUAKE', 'WEATHER', 'STORM'],
+        createdAt: DateTime.now(),
+      ));
 
-    _watchZones.add(WatchZone(
-      id: 'wz_india',
-      name: 'India Space & Weather Zone',
-      latitude: 28.6139,
-      longitude: 77.2090,
-      radiusKm: 1500.0,
-      trackedTypes: ['SATELLITE', 'WEATHER', 'STORM'],
-      createdAt: DateTime.now(),
-    ));
+      _watchZones.add(WatchZone(
+        id: 'wz_india',
+        name: 'India Space & Weather Zone',
+        latitude: 28.6139,
+        longitude: 77.2090,
+        radiusKm: 1500.0,
+        trackedTypes: ['SATELLITE', 'WEATHER', 'STORM'],
+        createdAt: DateTime.now(),
+      ));
+      _saveWatchZonesToStorage();
+    }
+  }
+
+  void _saveWatchZonesToStorage() {
+    if (kIsWeb) {
+      try {
+        final encoded = jsonEncode(_watchZones.map((z) => z.toJson()).toList());
+        web.window.localStorage.setItem('worldos_watch_zones', encoded);
+        web.window.localStorage.setItem('worldos_storage_init', 'true');
+      } catch (e) {
+        debugPrint('Error saving watch zones: $e');
+      }
+    }
+  }
+
+  void _saveInvestigationsToStorage() {
+    if (kIsWeb) {
+      try {
+        final encoded = jsonEncode(_investigations.map((inv) => inv.toJson()).toList());
+        web.window.localStorage.setItem('worldos_investigations', encoded);
+      } catch (e) {
+        debugPrint('Error saving investigations: $e');
+      }
+    }
+  }
+
+  bool _loadPersistedData() {
+    if (kIsWeb) {
+      try {
+        final initFlag = web.window.localStorage.getItem('worldos_storage_init');
+        final wzRaw = web.window.localStorage.getItem('worldos_watch_zones');
+        if (wzRaw != null && wzRaw.isNotEmpty) {
+          final List decoded = jsonDecode(wzRaw);
+          _watchZones.clear();
+          for (final item in decoded) {
+            _watchZones.add(WatchZone.fromJson(Map<String, dynamic>.from(item)));
+          }
+        }
+
+        final invRaw = web.window.localStorage.getItem('worldos_investigations');
+        if (invRaw != null && invRaw.isNotEmpty) {
+          final List decoded = jsonDecode(invRaw);
+          _investigations.clear();
+          for (final item in decoded) {
+            _investigations.add(Investigation.fromJson(Map<String, dynamic>.from(item)));
+          }
+        }
+        return initFlag == 'true';
+      } catch (e) {
+        debugPrint('Error loading persisted data: $e');
+      }
+    }
+    return false;
   }
 
   void dispose() {
@@ -133,11 +191,25 @@ class ServerpodService {
   /// Create a new watch zone
   void addWatchZone(WatchZone zone) {
     _watchZones.insert(0, zone);
+    _saveWatchZonesToStorage();
+  }
+
+  /// Delete a watch zone
+  void deleteWatchZone(String id) {
+    _watchZones.removeWhere((z) => z.id == id);
+    _saveWatchZonesToStorage();
   }
 
   /// Save an investigation session
   void saveInvestigation(Investigation inv) {
     _investigations.insert(0, inv);
+    _saveInvestigationsToStorage();
+  }
+
+  /// Delete an investigation session
+  void deleteInvestigation(String id) {
+    _investigations.removeWhere((i) => i.id == id);
+    _saveInvestigationsToStorage();
   }
 
   /// Grounded AI briefing generator for specified lat, lon, radius
@@ -211,24 +283,93 @@ Recommendation: Active watch zones monitoring real-time telemetry.
     return sb.toString();
   }
 
-  /// Process natural language exploration query
-  Future<String> askWorldOS(String query) async {
-    final q = query.toLowerCase();
-    double lat = 0.0;
-    double lon = 0.0;
-    String region = 'Global';
+  /// Process natural language exploration query using Hugging Face Qwen/Qwen2.5-72B-Instruct
+  Future<String> askWorldOS(String query, {String? telemetryContext}) async {
+    final token = EnvConfig.hfToken;
+    if (token.isEmpty) {
+      return 'WorldOS AI Engine: HF_TOKEN is not configured. Please define HF_TOKEN in your environment or launch settings to run neural queries.';
+    }
+    const model = 'Qwen/Qwen2.5-72B-Instruct';
+    const endpoints = [
+      'https://router.huggingface.co/hf-inference/v1/chat/completions',
+      'https://api-inference.huggingface.co/models/$model/v1/chat/completions',
+    ];
 
-    if (q.contains('japan') || q.contains('tokyo')) {
-      lat = 36.2048; lon = 138.2529; region = 'Japan';
-    } else if (q.contains('india') || q.contains('delhi')) {
-      lat = 28.6139; lon = 77.2090; region = 'India';
-    } else if (q.contains('europe') || q.contains('london') || q.contains('paris')) {
-      lat = 48.8566; lon = 2.3522; region = 'Europe';
-    } else if (q.contains('california') || q.contains('usa') || q.contains('america')) {
-      lat = 37.7749; lon = -122.4194; region = 'North America';
+    final contextText = telemetryContext ?? _buildLocalTelemetryContext(query);
+
+    final systemPrompt = '''
+You are WorldOS Tactical AI, a command-grade geospatial and astronomical assistant.
+Answer the user's specific prompt directly, factually, and analytically.
+If asked about a nation or territory (such as Yemen), provide its exact geopolitical location, capital city, coordinates, bordering bodies of water, terrain, and strategic significance.
+Never return canned mock templates or previous example cities.
+${contextText.isNotEmpty ? 'Active System Telemetry:\n$contextText' : ''}
+''';
+
+    for (final endpointUrl in endpoints) {
+      try {
+        final response = await http.post(
+          Uri.parse(endpointUrl),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'model': model,
+            'messages': [
+              {'role': 'system', 'content': systemPrompt},
+              {'role': 'user', 'content': query},
+            ],
+            'max_tokens': 1024,
+            'temperature': 0.5,
+          }),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+          final content = decoded['choices']?[0]?['message']?['content'];
+          if (content != null && content.toString().trim().isNotEmpty) {
+            return content.toString();
+          }
+        }
+      } catch (_) {}
     }
 
-    return fetchAiBriefing(latitude: lat, longitude: lon, radiusKm: 3000.0, regionName: region);
+    // Secondary fallback: Fast backup model if 72B is temporarily queued on free tier
+    try {
+      final fallbackResp = await http.post(
+        Uri.parse('https://router.huggingface.co/hf-inference/v1/chat/completions'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': 'Qwen/Qwen2.5-7B-Instruct',
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user', 'content': query},
+          ],
+          'max_tokens': 800,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (fallbackResp.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(fallbackResp.bodyBytes));
+        final content = decoded['choices']?[0]?['message']?['content'];
+        if (content != null && content.toString().trim().isNotEmpty) {
+          return content.toString();
+        }
+      }
+    } catch (_) {}
+
+    return 'Operational notice: Hugging Face inference gateway timed out or rejected authorization. Verify token permissions at huggingface.co/settings/tokens.';
+  }
+
+  String _buildLocalTelemetryContext(String query) {
+    final events = ingestionService.events;
+    if (events.isEmpty) return '';
+
+    final sample = events.take(8).map((e) => '- [${e.type}] ${e.title} (Severity: ${e.severity.toStringAsFixed(1)}, Lat/Lon: ${e.latitude.toStringAsFixed(2)}°, ${e.longitude.toStringAsFixed(2)}°)').join('\n');
+    return 'Live Ingested Telemetry Snapshot:\n$sample';
   }
 
   String _determineRegionName(double lat, double lon) {

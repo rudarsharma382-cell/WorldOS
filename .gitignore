@@ -1,0 +1,23 @@
+# Environment variables & secrets
+.env
+*.env
+.env.*
+!.env.example
+!worldos/assets/.env.example
+worldos/assets/.env
+worldos/config/env.json
+worldos_system/worldos_system_server/config/passwords.yaml
+
+# Operating System & IDE artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Build artifacts
+build/
+.dart_tool/

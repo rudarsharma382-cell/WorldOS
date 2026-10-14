@@ -74,24 +74,15 @@ class TimelineBar extends StatelessWidget {
 
             const SizedBox(width: 12),
 
-            // Category Chips (Desktop)
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return MediaQuery.of(context).size.width > 900
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildSegmentChip('ALL', 'All'),
-                          _buildSegmentChip('EARTHQUAKE', 'Seismic'),
-                          _buildSegmentChip('WEATHER', 'Weather'),
-                          _buildSegmentChip('WILDFIRE', 'Thermal'),
-                          _buildSegmentChip('SATELLITE', 'Orbital'),
-                          const SizedBox(width: 12),
-                        ],
-                      )
-                    : const SizedBox.shrink();
-              },
-            ),
+            // Category Chips (Desktop Wide)
+            if (MediaQuery.of(context).size.width > 1050) ...[
+              _buildSegmentChip('ALL', 'All'),
+              _buildSegmentChip('EARTHQUAKE', 'Seismic'),
+              _buildSegmentChip('WEATHER', 'Weather'),
+              _buildSegmentChip('WILDFIRE', 'Thermal'),
+              _buildSegmentChip('SATELLITE', 'Orbital'),
+              const SizedBox(width: 12),
+            ],
 
             // Time Travel Readout
             Container(
@@ -119,28 +110,29 @@ class TimelineBar extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 8),
-
-            // Scrubber Slider
-            SizedBox(
-              width: 140,
-              child: SliderTheme(
-                data: SliderThemeData(
-                  trackHeight: 2.5,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                  activeTrackColor: timeTravelHours == 0.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                  inactiveTrackColor: Colors.white24,
-                  thumbColor: timeTravelHours == 0.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                ),
-                child: Slider(
-                  value: timeTravelHours.clamp(-10.0, 0.0),
-                  min: -10.0,
-                  max: 0.0,
-                  onChanged: onTimeTravelChanged,
+            // Scrubber Slider (Adaptive width for tablet/desktop)
+            if (MediaQuery.of(context).size.width > 540) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: MediaQuery.of(context).size.width > 750 ? 130 : 90,
+                child: SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 2.5,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    activeTrackColor: timeTravelHours == 0.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                    inactiveTrackColor: Colors.white24,
+                    thumbColor: timeTravelHours == 0.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                  ),
+                  child: Slider(
+                    value: timeTravelHours.clamp(-10.0, 0.0),
+                    min: -10.0,
+                    max: 0.0,
+                    onChanged: onTimeTravelChanged,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       );

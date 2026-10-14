@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 
 class EventMediaPayloadData {
   final String satelliteImageUrl;
@@ -60,10 +61,8 @@ class NasaService {
   final Map<String, NasaImageData> _cache = {};
   final Map<String, EventMediaPayloadData> _mediaCache = {};
 
-  static const String mapboxToken =
-      String.fromEnvironment('MAPBOX_TOKEN', defaultValue: 'YOUR_MAPBOX_ACCESS_TOKEN');
-  static const String unsplashKey =
-      'b--UW9CogwZv_WCyl5XcY2R31vF_Vw5HB91q-riSfQo';
+  static String get mapboxToken => EnvConfig.mapboxToken;
+  static String get unsplashKey => EnvConfig.unsplashKey;
 
   /// Multi-Tier Visual Pipeline: Mapbox Satellite (Primary), Wikimedia Ground Photo (Secondary), Unsplash Fallback
   Future<EventMediaPayloadData> fetchLocationMedia({

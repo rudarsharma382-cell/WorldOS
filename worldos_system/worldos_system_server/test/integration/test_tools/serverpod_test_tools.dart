@@ -16,13 +16,15 @@ import 'package:serverpod/serverpod.dart' as _i2;
 import 'dart:async' as _i3;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i4;
-import 'package:worldos_system_server/src/generated/world_event.dart' as _i5;
-import 'package:worldos_system_server/src/generated/investigation.dart' as _i6;
+import 'package:worldos_system_server/src/generated/camera_feed_payload.dart'
+    as _i5;
+import 'package:worldos_system_server/src/generated/world_event.dart' as _i6;
+import 'package:worldos_system_server/src/generated/investigation.dart' as _i7;
 import 'package:worldos_system_server/src/generated/event_media_payload.dart'
-    as _i7;
-import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i8;
+    as _i8;
+import 'package:worldos_system_server/src/generated/watch_zone.dart' as _i9;
 import 'package:worldos_system_server/src/generated/greetings/greeting.dart'
-    as _i9;
+    as _i10;
 import 'package:worldos_system_server/src/generated/protocol.dart';
 import 'package:worldos_system_server/src/generated/endpoints.dart';
 export 'package:serverpod_test/serverpod_test_public_exports.dart';
@@ -143,7 +145,11 @@ class TestEndpoints {
 
   late final _AiEndpoint ai;
 
+  late final _CameraEndpoint camera;
+
   late final _EventEndpoint event;
+
+  late final _IntelligenceEndpoint intelligence;
 
   late final _InvestigationEndpoint investigation;
 
@@ -179,7 +185,15 @@ class _InternalTestEndpoints extends TestEndpoints
       endpoints,
       serializationManager,
     );
+    camera = _CameraEndpoint(
+      endpoints,
+      serializationManager,
+    );
     event = _EventEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    intelligence = _IntelligenceEndpoint(
       endpoints,
       serializationManager,
     );
@@ -583,8 +597,9 @@ class _AiEndpoint {
 
   _i3.Future<String> askWorldOS(
     _i1.TestSessionBuilder sessionBuilder,
-    String query,
-  ) async {
+    String query, [
+    String? telemetryContext,
+  ]) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
           (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
@@ -596,7 +611,10 @@ class _AiEndpoint {
           createSessionCallback: (_) => _localUniqueSession,
           endpointPath: 'ai',
           methodName: 'askWorldOS',
-          parameters: _i1.testObjectToJson({'query': query}),
+          parameters: _i1.testObjectToJson({
+            'query': query,
+            'telemetryContext': telemetryContext,
+          }),
           serializationManager: _serializationManager,
         );
         var _localReturnValue =
@@ -605,6 +623,54 @@ class _AiEndpoint {
                   _localCallContext.arguments,
                 )
                 as _i3.Future<String>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _CameraEndpoint {
+  _CameraEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<List<_i5.CameraFeedPayload>> getCamerasNearby(
+    _i1.TestSessionBuilder sessionBuilder,
+    double lat,
+    double lon, {
+    required int radiusKm,
+  }) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'camera',
+            method: 'getCamerasNearby',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'camera',
+          methodName: 'getCamerasNearby',
+          parameters: _i1.testObjectToJson({
+            'lat': lat,
+            'lon': lon,
+            'radiusKm': radiusKm,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<_i5.CameraFeedPayload>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -623,7 +689,7 @@ class _EventEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i5.WorldEvent>> getActiveEvents(
+  _i3.Future<List<_i6.WorldEvent>> getActiveEvents(
     _i1.TestSessionBuilder sessionBuilder,
     String? typeFilter,
     String? searchQuery,
@@ -652,7 +718,7 @@ class _EventEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i5.WorldEvent>>);
+                as _i3.Future<List<_i6.WorldEvent>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -660,7 +726,7 @@ class _EventEndpoint {
     });
   }
 
-  _i3.Future<List<_i5.WorldEvent>> getEventsNearLocation(
+  _i3.Future<List<_i6.WorldEvent>> getEventsNearLocation(
     _i1.TestSessionBuilder sessionBuilder,
     double lat,
     double lon,
@@ -689,7 +755,7 @@ class _EventEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i5.WorldEvent>>);
+                as _i3.Future<List<_i6.WorldEvent>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -697,9 +763,9 @@ class _EventEndpoint {
     });
   }
 
-  _i3.Future<_i5.WorldEvent> saveAndBroadcastEvent(
+  _i3.Future<_i6.WorldEvent> saveAndBroadcastEvent(
     _i1.TestSessionBuilder sessionBuilder,
-    _i5.WorldEvent event,
+    _i6.WorldEvent event,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -720,7 +786,53 @@ class _EventEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i5.WorldEvent>);
+                as _i3.Future<_i6.WorldEvent>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _IntelligenceEndpoint {
+  _IntelligenceEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<String> askWorldOS(
+    _i1.TestSessionBuilder sessionBuilder,
+    String query, [
+    String? telemetryContext,
+  ]) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'intelligence',
+            method: 'askWorldOS',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'intelligence',
+          methodName: 'askWorldOS',
+          parameters: _i1.testObjectToJson({
+            'query': query,
+            'telemetryContext': telemetryContext,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<String>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -739,9 +851,9 @@ class _InvestigationEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i6.Investigation> createInvestigation(
+  _i3.Future<_i7.Investigation> createInvestigation(
     _i1.TestSessionBuilder sessionBuilder,
-    _i6.Investigation investigation,
+    _i7.Investigation investigation,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -762,7 +874,7 @@ class _InvestigationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.Investigation>);
+                as _i3.Future<_i7.Investigation>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -770,7 +882,7 @@ class _InvestigationEndpoint {
     });
   }
 
-  _i3.Future<List<_i6.Investigation>> getInvestigations(
+  _i3.Future<List<_i7.Investigation>> getInvestigations(
     _i1.TestSessionBuilder sessionBuilder,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -792,7 +904,7 @@ class _InvestigationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i6.Investigation>>);
+                as _i3.Future<List<_i7.Investigation>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -811,7 +923,7 @@ class _MediaEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i7.EventMediaPayload> getLocationMedia(
+  _i3.Future<_i8.EventMediaPayload> getLocationMedia(
     _i1.TestSessionBuilder sessionBuilder,
     double lat,
     double lon,
@@ -840,7 +952,7 @@ class _MediaEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i7.EventMediaPayload>);
+                as _i3.Future<_i8.EventMediaPayload>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -949,9 +1061,9 @@ class _WatchZoneEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i8.WatchZone> createWatchZone(
+  _i3.Future<_i9.WatchZone> createWatchZone(
     _i1.TestSessionBuilder sessionBuilder,
-    _i8.WatchZone watchZone,
+    _i9.WatchZone watchZone,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -972,7 +1084,7 @@ class _WatchZoneEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i8.WatchZone>);
+                as _i3.Future<_i9.WatchZone>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -980,7 +1092,7 @@ class _WatchZoneEndpoint {
     });
   }
 
-  _i3.Future<List<_i8.WatchZone>> getWatchZones(
+  _i3.Future<List<_i9.WatchZone>> getWatchZones(
     _i1.TestSessionBuilder sessionBuilder,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
@@ -1002,7 +1114,7 @@ class _WatchZoneEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i8.WatchZone>>);
+                as _i3.Future<List<_i9.WatchZone>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1067,7 +1179,7 @@ class _GreetingEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i9.Greeting> hello(
+  _i3.Future<_i10.Greeting> hello(
     _i1.TestSessionBuilder sessionBuilder,
     String name,
   ) async {
@@ -1090,7 +1202,7 @@ class _GreetingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i9.Greeting>);
+                as _i3.Future<_i10.Greeting>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

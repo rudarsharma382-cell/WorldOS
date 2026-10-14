@@ -6,11 +6,15 @@ import '../../models/world_event.dart';
 
 class InvestigationDialog extends StatefulWidget {
   final WorldEvent? initialEvent;
+  final double? currentLat;
+  final double? currentLon;
   final Function(Investigation) onSave;
 
   const InvestigationDialog({
     super.key,
     this.initialEvent,
+    this.currentLat,
+    this.currentLon,
     required this.onSave,
   });
 
@@ -42,11 +46,16 @@ class _InvestigationDialogState extends State<InvestigationDialog> {
   }
 
   void _submit() {
+    final lat = widget.initialEvent?.latitude ?? widget.currentLat;
+    final lon = widget.initialEvent?.longitude ?? widget.currentLon;
+
     final inv = Investigation(
       id: 'inv_${DateTime.now().millisecondsSinceEpoch}',
       title: _titleController.text.trim().isEmpty ? 'Saved Investigation' : _titleController.text.trim(),
       notes: _notesController.text.trim(),
       eventIds: widget.initialEvent != null ? [widget.initialEvent!.id] : [],
+      latitude: lat,
+      longitude: lon,
       createdAt: DateTime.now(),
     );
     widget.onSave(inv);

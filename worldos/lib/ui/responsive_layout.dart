@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../config/env_config.dart';
 import '../models/world_event.dart';
 import '../services/serverpod_service.dart';
 import '../services/nasa_service.dart';
@@ -50,7 +51,6 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
   bool _isCamerasLoading = false;
 
   // HUD Drawer Retractable States
-  bool _isLeftPanelOpen = true;
   bool _isRightPanelOpen = true;
   String _rightPanelMode = 'EVENT'; // 'EVENT' or 'AI'
 
@@ -119,7 +119,45 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
   }
 
   void _onSearchSubmitted(String query) async {
-    if (query.trim().isEmpty) return;
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+
+    final clean = trimmed.replaceAll('°', '').trim();
+    final regex = RegExp(
+      r'^([+-]?\d+(?:\.\d+)?)\s*([NSEW])?[\s,;]+([+-]?\d+(?:\.\d+)?)\s*([NSEW])?$',
+      caseSensitive: false,
+    );
+    final match = regex.firstMatch(clean);
+    if (match != null) {
+      double lat = double.parse(match.group(1)!);
+      String? latDir = match.group(2)?.toUpperCase();
+      if (latDir == 'S') lat = -lat.abs();
+
+      double lon = double.parse(match.group(3)!);
+      String? lonDir = match.group(4)?.toUpperCase();
+      if (lonDir == 'W') lon = -lon.abs();
+
+      if ((latDir == 'E' || latDir == 'W') && (lonDir == 'N' || lonDir == 'S')) {
+        final tempLat = lat;
+        final tempLatDir = latDir;
+        lat = lon;
+        latDir = lonDir;
+        lon = tempLat;
+        lonDir = tempLatDir;
+        if (latDir == 'S') lat = -lat.abs();
+        if (lonDir == 'W') lon = -lon.abs();
+      }
+
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        _onLocationSelectedFromSearch(
+          lat,
+          lon,
+          'Geospatial Target [${lat.toStringAsFixed(3)}°, ${lon.toStringAsFixed(3)}°]',
+        );
+        return;
+      }
+    }
+
     final results = await NasaService().searchPhotonGeocoding(query);
     if (results.isNotEmpty) {
       final first = results.first;
@@ -295,6 +333,8 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
       context: context,
       builder: (context) => InvestigationDialog(
         initialEvent: ev,
+        currentLat: _centerLat,
+        currentLon: _centerLon,
         onSave: (inv) {
           setState(() {
             _serverpodService.saveInvestigation(inv);
@@ -473,53 +513,62 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                 ),
               ),
 
-              // 3. Desktop Floating Translucent Left Panel (Data Layers Rail)
+              // 3. Desktop Floating Translucent Left Panel (Dual-State Rail & Navigation)
               if (isDesktop)
                 Positioned(
-                  top: 62,
-                  bottom: 52,
-                  left: 14,
+                  top: 50,
+                  bottom: 50,
+                  left: 0,
                   child: PointerInterceptor(
-                    child: Row(
-                      children: [
-                        if (_isLeftPanelOpen)
-                          LayerDrawer(
-                            activeLayers: _activeLayers,
-                            onToggleLayer: _toggleLayer,
-                            watchZones: _serverpodService.watchZones,
-                            investigations: _serverpodService.investigations,
-                            events: displayEvents,
-                            onCreateWatchZone: _openWatchZoneModal,
-                            onSelectWatchZone: (zone) {
-                              _flyTo(zone.latitude, zone.longitude, 4.8);
-                            },
-                            onSelectInvestigation: (inv) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Loaded investigation: ${inv.title}', style: GoogleFonts.inter(fontSize: 12)),
-                                  backgroundColor: const Color(0xFF10B981),
-                                ),
-                              );
-                            },
+                    child: LeftSidebar(
+                      activeLayers: _activeLayers,
+                      onToggleLayer: _toggleLayer,
+                      watchZones: _serverpodService.watchZones,
+                      investigations: _serverpodService.investigations,
+                      events: displayEvents,
+                      onCreateWatchZone: _openWatchZoneModal,
+                      onSelectWatchZone: (zone) {
+                        _flyTo(zone.latitude, zone.longitude, 4.8);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Navigating to Watch Zone: ${zone.name}', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                            backgroundColor: const Color(0xFFF59E0B),
                           ),
-                        InkWell(
-                          onTap: () => setState(() => _isLeftPanelOpen = !_isLeftPanelOpen),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                            color: const Color(0xFF0C1017).withValues(alpha: 0.7),
-                            child: Icon(
-                              _isLeftPanelOpen ? Icons.chevron_left : Icons.tune,
-                              color: const Color(0xFF38BDF8),
-                              size: 16,
-                            ),
+                        );
+                      },
+                      onSelectInvestigation: (inv) {
+                        if (inv.latitude != null && inv.longitude != null) {
+                          _flyTo(inv.latitude!, inv.longitude!, 6.5);
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Navigating to saved session: ${inv.title}', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                            backgroundColor: const Color(0xFF10B981),
                           ),
-                        ),
-                      ],
+                        );
+                      },
+                      onDeleteWatchZone: (id) {
+                        setState(() {
+                          _serverpodService.deleteWatchZone(id);
+                        });
+                      },
+                      onDeleteInvestigation: (id) {
+                        setState(() {
+                          _serverpodService.deleteInvestigation(id);
+                        });
+                      },
+                      onExecuteFlightVector: () {
+                        _searchController.text = "fly to sector";
+                        FocusScope.of(context).requestFocus();
+                      },
+                      onZoomIn: () => _globeKey.currentState?.zoomIn(),
+                      onZoomOut: () => _globeKey.currentState?.zoomOut(),
+                      onResetGlobe: () => _globeKey.currentState?.resetView(),
                     ),
                   ),
                 ),
 
-              // 4. Desktop Floating Translucent Right Panel (Telemetry & AI Console)
+              // 4. Desktop Floating Translucent Right Panel (Telemetry & AI Console with Unified Collapsible Tab)
               if (isDesktop)
                 Positioned(
                   top: 62,
@@ -527,18 +576,33 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                   right: 14,
                   child: PointerInterceptor(
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Vertical Floating Rail Pill for Right Drawer Collapse
                         Container(
-                          color: const Color(0xFF0C1017).withValues(alpha: 0.7),
+                          margin: const EdgeInsets.only(top: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xEE080D1A),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0x3338BDF8), width: 1.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.4),
+                                blurRadius: 16,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
                                 icon: Icon(
                                   Icons.info_outline,
                                   color: _rightPanelMode == 'EVENT' && _isRightPanelOpen
                                       ? const Color(0xFF38BDF8)
-                                      : Colors.white38,
+                                      : const Color(0xFF94A3B8),
                                   size: 18,
                                 ),
                                 onPressed: () {
@@ -554,12 +618,13 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                                 },
                                 tooltip: 'Event Telemetry',
                               ),
+                              const SizedBox(height: 4),
                               IconButton(
                                 icon: Icon(
                                   Icons.shield_outlined,
                                   color: _rightPanelMode == 'AI' && _isRightPanelOpen
                                       ? const Color(0xFF38BDF8)
-                                      : Colors.white38,
+                                      : const Color(0xFF94A3B8),
                                   size: 18,
                                 ),
                                 onPressed: () {
@@ -607,6 +672,7 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                                   briefingText: _aiBriefingText,
                                   isLoading: _isAiLoading,
                                   onAskQuestion: _onAskAiQuestion,
+                                  onFlyTo: (lat, lon) => _flyToTactical3DDive(lat, lon, 10.5, 50.0),
                                   onClose: () {
                                     setState(() => _isRightPanelOpen = false);
                                     _globeKey.currentState?.scheduleUnfreezeAutoRotation();
@@ -656,6 +722,7 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                       isImageryLoading: _isNasaLoading,
                       cameraFeeds: _currentCameraFeeds,
                       isCamerasLoading: _isCamerasLoading,
+                      isMobile: true,
                       onClose: () {
                         setState(() => _showMobileDetails = false);
                         _globeKey.currentState?.scheduleUnfreezeAutoRotation();
@@ -677,8 +744,8 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                   ),
                 ),
 
-              // 7. Floating Pill Navigation Dock
-              _buildFloatingNavigationDock(isDesktop),
+              // 7. Right Floating Zoom & Globe Control Dock
+              _buildRightZoomDock(isDesktop),
 
               // 8. Razor-Thin Edge-to-Edge Solid Command-Center Bottom Glass Container
               Positioned(
@@ -757,8 +824,9 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
 
   Widget _buildExpandedCentralDossierView() {
     final ev = _selectedEvent ?? (_filteredEvents.isNotEmpty ? _filteredEvents.first : null);
-    final mapboxUrl = ev != null
-        ? 'https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${ev.longitude},${ev.latitude},14,0/800x500@2x?access_token=YOUR_MAPBOX_ACCESS_TOKEN'
+    final mapboxToken = EnvConfig.mapboxToken;
+    final mapboxUrl = (ev != null && mapboxToken.isNotEmpty)
+        ? 'https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${ev.longitude},${ev.latitude},14,0/800x500@2x?access_token=$mapboxToken'
         : null;
 
     return Positioned.fill(
@@ -779,16 +847,20 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
                 children: [
                   const Icon(Icons.satellite_alt, color: Color(0xFF38BDF8), size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    'TACTICAL INTELLIGENCE WORKSPACE // PIP EXPANDED DOSSIER',
-                    style: GoogleFonts.jetBrainsMono(
-                      color: const Color(0xFF38BDF8),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
+                  Expanded(
+                    child: Text(
+                      'TACTICAL INTELLIGENCE WORKSPACE // PIP EXPANDED DOSSIER',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: GoogleFonts.jetBrainsMono(
+                        color: const Color(0xFF38BDF8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white54, size: 16),
                     onPressed: () => setState(() => _isGlobeMinimized = false),
@@ -893,53 +965,53 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
     );
   }
 
-  Widget _buildFloatingNavigationDock(bool isDesktop) {
+  Widget _buildRightZoomDock(bool isDesktop) {
     return Positioned(
-      bottom: 110,
-      right: isDesktop && _isRightPanelOpen ? 360.0 : 20.0,
+      bottom: 65,
+      right: isDesktop && _isRightPanelOpen ? 370.0 : 20.0,
       child: PointerInterceptor(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A0E17),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF1E293B), width: 1.0),
+            color: const Color(0xEE080D1A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0x3338BDF8), width: 1.0),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 16,
-                spreadRadius: 2,
+                spreadRadius: 1,
               ),
             ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDockButton(
+              _buildRightZoomButton(
                 icon: _isGlobeMinimized ? Icons.aspect_ratio : Icons.picture_in_picture_alt,
                 tooltip: _isGlobeMinimized ? 'Expand Globe' : 'Minimize Globe (PIP)',
                 onPressed: () => setState(() => _isGlobeMinimized = !_isGlobeMinimized),
               ),
-              _buildDockButton(
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                width: 20,
+                height: 1,
+                color: const Color(0x3338BDF8),
+              ),
+              _buildRightZoomButton(
                 icon: CupertinoIcons.globe,
-                tooltip: 'Reset to Global View',
-                onPressed: () {
-                  _globeKey.currentState?.resetView();
-                },
+                tooltip: 'Reset 3D Globe',
+                onPressed: () => _globeKey.currentState?.resetView(),
               ),
-              _buildDockButton(
+              _buildRightZoomButton(
                 icon: CupertinoIcons.add,
-                tooltip: 'Zoom In',
-                onPressed: () {
-                  _globeKey.currentState?.zoomIn();
-                },
+                tooltip: 'Zoom In (+)',
+                onPressed: () => _globeKey.currentState?.zoomIn(),
               ),
-              _buildDockButton(
+              _buildRightZoomButton(
                 icon: CupertinoIcons.minus,
-                tooltip: 'Zoom Out',
-                onPressed: () {
-                  _globeKey.currentState?.zoomOut();
-                },
+                tooltip: 'Zoom Out (-)',
+                onPressed: () => _globeKey.currentState?.zoomOut(),
               ),
             ],
           ),
@@ -948,37 +1020,22 @@ class _ResponsiveWorldOSLayoutState extends State<ResponsiveWorldOSLayout> {
     );
   }
 
-  Widget _buildDockButton({
+  Widget _buildRightZoomButton({
     required IconData icon,
     required String tooltip,
     required VoidCallback onPressed,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(20),
-            hoverColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-            highlightColor: const Color(0xFF38BDF8).withValues(alpha: 0.25),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  color: const Color(0xFF38BDF8),
-                  size: 16,
-                ),
-              ),
-            ),
-          ),
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        hoverColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: const BoxDecoration(shape: BoxShape.circle),
+          child: Icon(icon, color: const Color(0xFF38BDF8), size: 16),
         ),
       ),
     );

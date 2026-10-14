@@ -1,14 +1,44 @@
+import 'dart:js_interop';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'config/env_config.dart';
 import 'ui/responsive_layout.dart';
 
-void main() {
+@JS('signalAppReady')
+external void _signalAppReady();
+
+void notifyBootReady() {
+  if (kIsWeb) {
+    try {
+      _signalAppReady();
+    } catch (_) {
+      // Graceful no-op on non-web platforms
+    }
+  }
+}
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EnvConfig.init();
   runApp(const WorldOSApp());
 }
 
-class WorldOSApp extends StatelessWidget {
+class WorldOSApp extends StatefulWidget {
   const WorldOSApp({super.key});
+
+  @override
+  State<WorldOSApp> createState() => _WorldOSAppState();
+}
+
+class _WorldOSAppState extends State<WorldOSApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyBootReady();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
