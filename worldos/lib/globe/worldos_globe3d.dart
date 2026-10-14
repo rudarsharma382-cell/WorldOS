@@ -87,6 +87,10 @@ void _registerMapboxViewFactory() {
     element.style.margin = '0px';
     element.style.padding = '0px';
     element.style.overflow = 'hidden';
+
+    // Directly bind to JS global to bypass Shadow DOM lookup limitations
+    (web.window as dynamic)._mapboxGlobeElement = element;
+
     return element;
   });
 }

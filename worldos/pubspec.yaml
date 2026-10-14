@@ -29,6 +29,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/.env
     - assets/earth_map.png
     - assets/videos/boot_sequence.mp4
     - assets/images/worldos_logo.png

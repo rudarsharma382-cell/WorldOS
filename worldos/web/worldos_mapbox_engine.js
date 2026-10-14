@@ -12,8 +12,13 @@ window.WorldOSMapboxEngine = {
   autoRotateAnimation: null,
 
   init: function(containerId, accessToken, onMarkerClickCb, onCameraChangedCb, onLocationSelectedCb) {
+    const self = this;
+
     if (typeof mapboxgl === 'undefined') {
-      console.warn('Mapbox GL JS is not loaded yet.');
+      console.warn('Mapbox GL JS is loading... retrying in 150ms.');
+      setTimeout(function() {
+        self.init(containerId, accessToken, onMarkerClickCb, onCameraChangedCb, onLocationSelectedCb);
+      }, 150);
       return;
     }
 
@@ -21,11 +26,11 @@ window.WorldOSMapboxEngine = {
     if (onCameraChangedCb) this.onCameraChangedCallback = onCameraChangedCb;
     if (onLocationSelectedCb) this.onLocationSelectedCallback = onLocationSelectedCb;
 
-    const activeToken = (accessToken && accessToken.startsWith('pk.')) ? accessToken : 'YOUR_MAPBOX_ACCESS_TOKEN';
-    this.isCustomToken = !!accessToken && accessToken.startsWith('pk.');
-    mapboxgl.accessToken = activeToken;
-
-    const self = this;
+    const activeToken = (accessToken && typeof accessToken === 'string' && accessToken.startsWith('pk.')) ? accessToken : '';
+    this.isCustomToken = !!activeToken && activeToken.startsWith('pk.');
+    if (this.isCustomToken) {
+      mapboxgl.accessToken = activeToken;
+    }
 
     const rasterGlobeStyle = {
       version: 8,
@@ -63,12 +68,31 @@ window.WorldOSMapboxEngine = {
       ]
     };
 
-    const targetStyle = 'mapbox://styles/mapbox/satellite-streets-v12';
+    const targetStyle = this.isCustomToken
+      ? 'mapbox://styles/mapbox/satellite-streets-v12'
+      : rasterGlobeStyle;
 
     const setupMap = function() {
-      const container = document.getElementById(containerId);
+      function resolveContainer() {
+        if (window._mapboxGlobeElement && (document.contains(window._mapboxGlobeElement) || window._mapboxGlobeElement.isConnected)) {
+          return window._mapboxGlobeElement;
+        }
+        let el = document.getElementById(containerId);
+        if (el) return el;
+        // Search inside shadow roots (Flutter Web WebGL / GlassPane DOM)
+        const all = document.querySelectorAll('*');
+        for (let i = 0; i < all.length; i++) {
+          if (all[i].shadowRoot) {
+            el = all[i].shadowRoot.querySelector('#' + containerId);
+            if (el) return el;
+          }
+        }
+        return window._mapboxGlobeElement || null;
+      }
+
+      const container = resolveContainer();
       if (!container) {
-        setTimeout(setupMap, 50);
+        setTimeout(setupMap, 60);
         return;
       }
 
@@ -83,7 +107,7 @@ window.WorldOSMapboxEngine = {
       container.style.backgroundColor = '#02040A';
 
       if (self.map) {
-        if (self.map.getContainer() === container && document.body.contains(container)) {
+        if (self.map.getContainer() === container && (document.body.contains(container) || container.isConnected)) {
           self.map.resize();
           return;
         } else {
@@ -98,7 +122,7 @@ window.WorldOSMapboxEngine = {
 
       try {
         self.map = new mapboxgl.Map({
-          container: containerId,
+          container: container,
           style: targetStyle,
           projection: 'globe',
           center: [78.9629, 20.5937],
@@ -139,7 +163,7 @@ window.WorldOSMapboxEngine = {
         console.warn('Mapbox GL Map creation warning, attempting fallback raster style:', err);
         try {
           self.map = new mapboxgl.Map({
-            container: containerId,
+            container: container,
             style: rasterGlobeStyle,
             projection: 'globe',
             center: [78.9629, 20.5937],
@@ -153,8 +177,13 @@ window.WorldOSMapboxEngine = {
       }
 
       self.map.on('error', (e) => {
-        if (e && e.error && (e.error.status === 401 || e.error.status === 403)) {
-          return;
+        if (e && e.error && (e.error.status === 401 || e.error.status === 403 || (e.error.message && e.error.message.includes('401')))) {
+          console.warn('Mapbox access token error, falling back to ESRI satellite imagery');
+          try {
+            self.map.setStyle(rasterGlobeStyle);
+          } catch(err) {
+            console.error('Fallback setStyle error:', err);
+          }
         }
       });
 
