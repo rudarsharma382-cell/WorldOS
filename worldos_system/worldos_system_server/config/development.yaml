@@ -29,13 +29,12 @@ webServer:
 
 # This is the database setup for your server.
 database:
-  host: localhost
-  port: 8090
-  name: worldos_system
-  user: postgres
-  #requireSsl: true # defaults to false
-  #isUnixSocket: true # defaults to false
-  #maxConnectionCount: 10 # Defaults to 10, a negative or null value removes the limit
+  host: ep-silent-dawn-b5a3pt9d.c-7.us-east-2.aws.neon.tech
+  port: 5432
+  name: neondb
+  user: neondb_owner
+  requireSsl: true
+  maxConnectionCount: -1
 
 # This is the setup for Redis.
 redis:
