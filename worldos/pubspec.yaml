@@ -17,6 +17,8 @@ dependencies:
   google_fonts: ^6.2.1
   pointer_interceptor: ^0.10.1
   web: ^1.0.0
+  worldos_system_client:
+    path: ../worldos_system/worldos_system_client
 
 
 dev_dependencies:

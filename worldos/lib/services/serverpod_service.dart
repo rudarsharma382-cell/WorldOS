@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
 import 'package:http/http.dart' as http;
+import 'package:worldos_system_client/worldos_system_client.dart' as sp;
 import '../config/env_config.dart';
 import '../models/watch_zone.dart';
 import '../models/investigation.dart';
@@ -12,12 +13,33 @@ import 'nasa_service.dart';
 class ServerpodService {
   static final ServerpodService _instance = ServerpodService._internal();
   factory ServerpodService() => _instance;
-  ServerpodService._internal();
+  ServerpodService._internal() {
+    _initClient();
+  }
 
+  late final sp.Client client;
   final IngestionService ingestionService = IngestionService();
   final NasaService nasaService = NasaService();
-  final bool _isConnected = true;
+  bool _isConnected = false;
   bool get isConnected => _isConnected;
+
+  void _initClient() {
+    const serverUrl = String.fromEnvironment('SERVER_URL', defaultValue: 'http://localhost:8080/');
+    client = sp.Client(serverUrl);
+  }
+
+  Future<bool> checkServerConnectivity() async {
+    try {
+      await client.greeting.hello('WorldOS').timeout(const Duration(milliseconds: 2000));
+      _isConnected = true;
+      debugPrint('[Serverpod] Connected to backend at: ${client.host}');
+      return true;
+    } catch (_) {
+      _isConnected = false;
+      debugPrint('[Serverpod] Backend offline. Operating in resilient standalone mode.');
+      return false;
+    }
+  }
 
   final List<WatchZone> _watchZones = [];
   List<WatchZone> get watchZones => List.unmodifiable(_watchZones);
@@ -107,6 +129,13 @@ class ServerpodService {
     ingestionService.initialize();
     final bool isStorageInitialized = _loadPersistedData();
     
+    // Probe Serverpod backend asynchronously
+    checkServerConnectivity().then((online) {
+      if (online) {
+        _syncFromBackend();
+      }
+    });
+
     // Seed default Watch Zones only on initial setup before user modifications
     if (_watchZones.isEmpty && !isStorageInitialized) {
       _watchZones.add(WatchZone(
@@ -130,6 +159,44 @@ class ServerpodService {
       ));
       _saveWatchZonesToStorage();
     }
+  }
+
+  Future<void> _syncFromBackend() async {
+    try {
+      final remoteZones = await client.watchZone.getWatchZones();
+      if (remoteZones.isNotEmpty) {
+        _watchZones.clear();
+        for (final rz in remoteZones) {
+          _watchZones.add(WatchZone(
+            id: rz.id?.toString() ?? 'wz_${rz.name}',
+            name: rz.name,
+            latitude: rz.latitude,
+            longitude: rz.longitude,
+            radiusKm: rz.radiusKm,
+            trackedTypes: rz.trackedTypes,
+            createdAt: rz.createdAt,
+          ));
+        }
+        _saveWatchZonesToStorage();
+      }
+    } catch (_) {}
+
+    try {
+      final remoteInvs = await client.investigation.getInvestigations();
+      if (remoteInvs.isNotEmpty) {
+        _investigations.clear();
+        for (final ri in remoteInvs) {
+          _investigations.add(Investigation(
+            id: ri.id?.toString() ?? 'inv_${ri.title}',
+            title: ri.title,
+            notes: ri.notes,
+            eventIds: ri.eventIds,
+            createdAt: ri.createdAt,
+          ));
+        }
+        _saveInvestigationsToStorage();
+      }
+    } catch (_) {}
   }
 
   void _saveWatchZonesToStorage() {
@@ -192,6 +259,24 @@ class ServerpodService {
   void addWatchZone(WatchZone zone) {
     _watchZones.insert(0, zone);
     _saveWatchZonesToStorage();
+    if (_isConnected) {
+      _persistWatchZoneRemotely(zone);
+    }
+  }
+
+  Future<void> _persistWatchZoneRemotely(WatchZone zone) async {
+    try {
+      await client.watchZone.createWatchZone(
+        sp.WatchZone(
+          name: zone.name,
+          latitude: zone.latitude,
+          longitude: zone.longitude,
+          radiusKm: zone.radiusKm,
+          trackedTypes: zone.trackedTypes,
+          createdAt: zone.createdAt,
+        ),
+      );
+    } catch (_) {}
   }
 
   /// Delete a watch zone
@@ -204,6 +289,22 @@ class ServerpodService {
   void saveInvestigation(Investigation inv) {
     _investigations.insert(0, inv);
     _saveInvestigationsToStorage();
+    if (_isConnected) {
+      _persistInvestigationRemotely(inv);
+    }
+  }
+
+  Future<void> _persistInvestigationRemotely(Investigation inv) async {
+    try {
+      await client.investigation.createInvestigation(
+        sp.Investigation(
+          title: inv.title,
+          notes: inv.notes,
+          eventIds: inv.eventIds,
+          createdAt: inv.createdAt,
+        ),
+      );
+    } catch (_) {}
   }
 
   /// Delete an investigation session
@@ -219,6 +320,18 @@ class ServerpodService {
     required double radiusKm,
     String? regionName,
   }) async {
+    if (_isConnected) {
+      try {
+        final briefing = await client.ai.generateBriefing(
+          latitude,
+          longitude,
+          radiusKm,
+          regionName,
+        ).timeout(const Duration(seconds: 15));
+        if (briefing.isNotEmpty) return briefing;
+      } catch (_) {}
+    }
+
     final allEvents = ingestionService.events;
     
     // Filter events inside spatial radius
@@ -285,6 +398,13 @@ Recommendation: Active watch zones monitoring real-time telemetry.
 
   /// Process natural language exploration query using Hugging Face Qwen/Qwen2.5-72B-Instruct
   Future<String> askWorldOS(String query, {String? telemetryContext}) async {
+    if (_isConnected) {
+      try {
+        final answer = await client.ai.askWorldOS(query, telemetryContext).timeout(const Duration(seconds: 20));
+        if (answer.isNotEmpty) return answer;
+      } catch (_) {}
+    }
+
     final token = EnvConfig.hfToken;
     if (token.isEmpty) {
       return 'WorldOS AI Engine: HF_TOKEN is not configured. Please define HF_TOKEN in your environment or launch settings to run neural queries.';

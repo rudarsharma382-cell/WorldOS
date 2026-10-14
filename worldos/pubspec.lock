@@ -384,6 +384,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.0"
+  serverpod_auth_core_client:
+    dependency: transitive
+    description:
+      name: serverpod_auth_core_client
+      sha256: "60b89a1b854fd9c7d589737befd7e4d0cafe047600d65b12b137d827e4c6f6ba"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.4.13"
+  serverpod_auth_idp_client:
+    dependency: transitive
+    description:
+      name: serverpod_auth_idp_client
+      sha256: fb97444ef0df6ac0eca66be884f1107d943df29fb999b6e9a5ad2eb95de9010e
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.4.13"
   serverpod_client:
     dependency: "direct main"
     description:
@@ -509,6 +525,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  worldos_system_client:
+    dependency: "direct main"
+    description:
+      path: "../worldos_system/worldos_system_client"
+      relative: true
+    source: path
+    version: "0.0.0"
   xdg_directories:
     dependency: transitive
     description:
