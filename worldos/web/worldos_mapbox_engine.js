@@ -26,7 +26,7 @@ window.WorldOSMapboxEngine = {
     if (onCameraChangedCb) this.onCameraChangedCallback = onCameraChangedCb;
     if (onLocationSelectedCb) this.onLocationSelectedCallback = onLocationSelectedCb;
 
-    const activeToken = (accessToken && typeof accessToken === 'string' && accessToken.startsWith('pk.')) ? accessToken : '';
+    const activeToken = (accessToken && typeof accessToken === 'string' && accessToken.startsWith('pk.')) ? accessToken : (window._mbToken || '');
     this.isCustomToken = !!activeToken && activeToken.startsWith('pk.');
     if (this.isCustomToken) {
       mapboxgl.accessToken = activeToken;
@@ -74,18 +74,31 @@ window.WorldOSMapboxEngine = {
 
     const setupMap = function() {
       function resolveContainer() {
+        if (containerId && typeof containerId === 'object' && containerId.nodeType === 1) {
+          return containerId;
+        }
         if (window._mapboxGlobeElement && (document.contains(window._mapboxGlobeElement) || window._mapboxGlobeElement.isConnected)) {
           return window._mapboxGlobeElement;
         }
-        let el = document.getElementById(containerId);
-        if (el) return el;
-        // Search inside shadow roots (Flutter Web WebGL / GlassPane DOM)
-        const all = document.querySelectorAll('*');
-        for (let i = 0; i < all.length; i++) {
-          if (all[i].shadowRoot) {
-            el = all[i].shadowRoot.querySelector('#' + containerId);
-            if (el) return el;
+        if (typeof containerId === 'string') {
+          let el = document.getElementById(containerId);
+          if (el) return el;
+          function findShadow(node) {
+            if (!node) return null;
+            if (node.id === containerId) return node;
+            if (node.shadowRoot) {
+              const res = findShadow(node.shadowRoot);
+              if (res) return res;
+            }
+            const kids = node.children || [];
+            for (let i = 0; i < kids.length; i++) {
+              const res = findShadow(kids[i]);
+              if (res) return res;
+            }
+            return null;
           }
+          const found = findShadow(document.body);
+          if (found) return found;
         }
         return window._mapboxGlobeElement || null;
       }
@@ -832,5 +845,58 @@ window.setWorldOSLayerVisibility = function(layerId, isVisible) {
 window.flyToCoordinates = function(lon, lat, targetZoom = 11.5, targetPitch = 60) {
   WorldOSMapboxEngine.flyToCoordinates(lon, lat, targetZoom, targetPitch);
 };
+
+window.mountMapboxGlobe = function(containerElement, token) {
+  console.log('[WorldOSMapboxEngine] Mounting Mapbox 3D Globe directly to container:', containerElement);
+  window._mapboxGlobeElement = containerElement;
+  WorldOSMapboxEngine.init(containerElement, token);
+};
+
+window.updateMapboxMarkers = function(jsonMarkers) {
+  try {
+    WorldOSMapboxEngine.updateMarkers(jsonMarkers);
+  } catch (e) {
+    console.warn('[WorldOSMapboxEngine] updateMapboxMarkers error:', e);
+  }
+};
+
+window.flyToMapbox = function(lat, lon, zoom, pitch, bearing) {
+  try {
+    WorldOSMapboxEngine.flyTo(lat, lon, zoom, pitch, bearing);
+  } catch (e) {
+    console.warn('[WorldOSMapboxEngine] flyToMapbox error:', e);
+  }
+};
+
+window.zoomInMapbox = function() {
+  try {
+    WorldOSMapboxEngine.zoomIn();
+  } catch (_) {}
+};
+
+window.zoomOutMapbox = function() {
+  try {
+    WorldOSMapboxEngine.zoomOut();
+  } catch (_) {}
+};
+
+window.resetViewMapbox = function() {
+  try {
+    WorldOSMapboxEngine.resetView();
+  } catch (_) {}
+};
+
+window.setMapboxLayerVisibility = function(layerId, isVisible) {
+  try {
+    WorldOSMapboxEngine.setLayerVisibility(layerId, isVisible);
+  } catch (_) {}
+};
+
+window.setAutoRotateMapbox = function(enabled) {
+  try {
+    WorldOSMapboxEngine.setAutoRotate(enabled);
+  } catch (_) {}
+};
+
 
 

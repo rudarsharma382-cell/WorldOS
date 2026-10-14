@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:serverpod/serverpod.dart';
@@ -53,9 +54,9 @@ void run(List<String> args) async {
   // Checks if the flutter web app has been built and serves it if it has.
   final appDir = Directory(Uri(path: 'web/app').toFilePath());
   if (appDir.existsSync()) {
-    // Serve the Flutter web app directly at root and /app
+    // Serve the Flutter web app directly at root and /app without COEP header blocking Mapbox
     pod.webServer.addRoute(
-      FlutterRoute(
+      WorldOSWebRoute(
         Directory(
           Uri(path: 'web/app').toFilePath(),
         ),
@@ -63,7 +64,7 @@ void run(List<String> args) async {
       '/',
     );
     pod.webServer.addRoute(
-      FlutterRoute(
+      WorldOSWebRoute(
         Directory(
           Uri(path: 'web/app').toFilePath(),
         ),
@@ -123,3 +124,45 @@ void _sendPasswordResetCode(
   // the user. For testing, we will just log the verification code.
   session.log('[EmailIdp] Password reset code ($email): $verificationCode');
 }
+
+/// Custom route to serve the Flutter Web app without injecting WasmHeadersMiddleware
+/// which sets Cross-Origin-Embedder-Policy: require-corp (blocking Mapbox tiles & workers).
+class WorldOSWebRoute extends Route {
+  final Directory directory;
+  final File indexFile;
+
+  WorldOSWebRoute(this.directory, {File? indexFile, super.host})
+      : indexFile = indexFile ?? File(Uri(path: '${directory.path}/index.html').toFilePath()),
+        super(methods: {Method.get, Method.head});
+
+  @override
+  void injectIn(RelicRouter router) {
+    final subRouter = Router<Handler>();
+
+    // Fallback to index.html for SPA client-side routing
+    subRouter.use(
+      '/',
+      FallbackMiddleware(
+        fallback: StaticRoute.file(
+          indexFile,
+          cacheControlFactory: StaticRoute.privateNoCache(),
+        ),
+        on: (response) => response.statusCode == 404,
+      ).call,
+    );
+
+    // Serve static files with privateNoCache headers
+    StaticRoute.directory(
+      directory,
+      cacheControlFactory: StaticRoute.privateNoCache(),
+    ).injectIn(subRouter);
+
+    router.attach('/', subRouter);
+  }
+
+  @override
+  FutureOr<Result> handleCall(Session session, Request request) {
+    throw UnimplementedError('Handled via injectIn');
+  }
+}
+
