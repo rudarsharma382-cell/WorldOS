@@ -24,19 +24,27 @@ class ServerpodService {
   bool get isConnected => _isConnected;
 
   void _initClient() {
-    const serverUrl = String.fromEnvironment('SERVER_URL', defaultValue: 'http://localhost:8080/');
+    String defaultUrl = 'http://localhost:8080/';
+    if (kIsWeb) {
+      final host = web.window.location.hostname;
+      if (host.contains('serverpod.space')) {
+        defaultUrl = 'https://${host.replaceFirst('.serverpod.space', '.api.serverpod.space')}/';
+      }
+    }
+    const envUrl = String.fromEnvironment('SERVER_URL');
+    final serverUrl = envUrl.isNotEmpty ? envUrl : defaultUrl;
     client = sp.Client(serverUrl);
   }
 
   Future<bool> checkServerConnectivity() async {
     try {
-      await client.greeting.hello('WorldOS').timeout(const Duration(milliseconds: 2000));
+      await client.watchZone.getWatchZones().timeout(const Duration(milliseconds: 4000));
       _isConnected = true;
       debugPrint('[Serverpod] Connected to backend at: ${client.host}');
       return true;
-    } catch (_) {
+    } catch (e) {
       _isConnected = false;
-      debugPrint('[Serverpod] Backend offline. Operating in resilient standalone mode.');
+      debugPrint('[Serverpod] Backend connection error ($e). Operating in resilient standalone mode.');
       return false;
     }
   }
