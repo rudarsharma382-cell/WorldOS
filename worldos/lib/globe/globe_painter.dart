@@ -115,7 +115,8 @@ class GlobePainter extends CustomPainter {
 
   void _drawEventMarkers(Canvas canvas, double cx, double cy, double radius) {
     for (final event in events) {
-      if (!activeLayers.contains(event.type) && !activeLayers.contains('ALL')) continue;
+      final type = event.type.toUpperCase();
+      if (!activeLayers.contains(event.type) && !activeLayers.contains(type) && !activeLayers.contains('ALL')) continue;
 
       final proj = OrthographicProjection.project(
         latDeg: event.latitude,
@@ -131,7 +132,6 @@ class GlobePainter extends CustomPainter {
 
       final pos = Offset(proj.screenX, proj.screenY);
       final isSelected = selectedEvent?.id == event.id;
-      final type = event.type.toUpperCase();
 
       if (type == 'EARTHQUAKE' || type == 'SEISMIC') {
         _drawSeismicReticle(canvas, pos, event, isSelected);
